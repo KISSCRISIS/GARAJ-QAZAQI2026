@@ -896,6 +896,7 @@
     try{
       disableButton("registerButton",true,"جارِ رفع الصورة...","إرسال طلب التسجيل");
       const photoUrl=await uploadEmployeePhoto($("employeeId").value.trim());
+      const pendingDeviceToken=generateTrustedDeviceToken();
       disableButton("registerButton",true,"جارِ إرسال الطلب...","إرسال طلب التسجيل");
       const payload={
         p_full_name:$("fullName").value.trim(),
@@ -905,13 +906,19 @@
         p_qr_token:activeQrToken||null,
         p_job_type:$("jobType").value.trim(),
         p_department:$("jobType").value.trim(),
-        p_photo_url:photoUrl
+        p_photo_url:photoUrl,
+        p_device_token:pendingDeviceToken,
+        p_device_id:getTrustedDeviceId(),
+        p_device_type:getDeviceType(),
+        p_device_name:getDeviceName(),
+        p_user_agent:navigator.userAgent
       };
       const {data,error}=await supabaseClient.rpc("register_employee_request",payload);
       const result=normalizeRpcData(data,"register_employee_request") || data;
       if(error || !result) throw new Error(error?.message||"فشل إرسال الطلب.");
       setResult(result.result||"PENDING",result.message||"تم إرسال الطلب.",result.employee||null);
       if(result.ok===true){
+        saveTrustedDeviceToken(pendingDeviceToken);
         $("registerForm").reset();
         $("employeePhotoPreview").removeAttribute("src");
         $("employeePhotoPreview").style.display="none";
