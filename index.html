@@ -1388,8 +1388,13 @@
         hideSetupWarning();
 
         const rpcStartedAt = performance.now();
+        const gateDevice = getGateDevice();
+        const qrSessionPayload = {
+          p_device_code: gateDevice.device_code,
+          p_device_token: getOfflineDeviceToken()
+        };
         const { data, error } = await rpcWithTimeout(
-          (signal) => supabaseClient.rpc("create_qr_session").abortSignal?.(signal) || supabaseClient.rpc("create_qr_session"),
+          (signal) => supabaseClient.rpc("create_qr_session", qrSessionPayload).abortSignal?.(signal) || supabaseClient.rpc("create_qr_session", qrSessionPayload),
           QR_REQUEST_TIMEOUT_MS,
           "انتهت مهلة إنشاء QR من Supabase"
         );
