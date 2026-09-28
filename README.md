@@ -644,6 +644,7 @@ schema_patch_employee_profiles.sql
 6. `schema_patch_trusted_device_metadata.sql`
 7. `schema_patch_employee_profiles.sql`
 8. `schema_patch_production_hardening.sql`
+9. `schema_patch_pgcrypto_schema_fix.sql`
 
 بعد ذلك أنشئ أول حساب SUPER_ADMIN في Supabase Auth وأضف سجله الإداري
 بملف خاص. لا ترفع الملف الذي يحتوي بيانات الحساب إلى GitHub.
