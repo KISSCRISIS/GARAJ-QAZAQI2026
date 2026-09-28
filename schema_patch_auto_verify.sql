@@ -43,7 +43,7 @@ returns text
 language sql
 immutable
 as $$
-  select encode(digest(trim(coalesce(p_token, '')), 'sha256'), 'hex');
+  select encode(extensions.digest(trim(coalesce(p_token, '')), 'sha256'), 'hex');
 $$;
 
 -- 3) فحص أهلية الموظف لتفعيل التحقق السريع من جهازه

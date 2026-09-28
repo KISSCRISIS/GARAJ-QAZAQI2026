@@ -150,7 +150,7 @@ returns text
 language sql
 immutable
 as $$
-  select encode(digest(coalesce(p_token, ''), 'sha256'), 'hex');
+  select encode(extensions.digest(coalesce(p_token, ''), 'sha256'), 'hex');
 $$;
 
 drop function if exists public.upsert_gate_device_heartbeat(text, text, text, text);

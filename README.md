@@ -241,13 +241,13 @@ SUPABASE_ANON_KEY: "eyJhbGciOi..."
 في `index.html` و `verify.html` يوجد أيضًا:
 
 ```js
-LIVE_SITE_URL: "https://garagey.netlify.app",
+LIVE_SITE_URL: "https://sprightly-donut-6db8c8.netlify.app",
 ```
 
 بعد نشر الموقع على Netlify، ضعي رابط الموقع النهائي مثل:
 
 ```js
-LIVE_SITE_URL: "https://garagey.netlify.app",
+LIVE_SITE_URL: "https://sprightly-donut-6db8c8.netlify.app",
 ```
 
 قبل نشر Netlify يمكن تركها كما هي، وسيحاول الموقع استخدام الرابط الحالي تلقائيًا.
@@ -317,10 +317,10 @@ Build command = empty
 مثال:
 
 ```txt
-https://garagey.netlify.app/index.html
-https://garagey.netlify.app/verify.html
-https://garagey.netlify.app/login.html
-https://garagey.netlify.app/admin_dashboard.html
+https://sprightly-donut-6db8c8.netlify.app/index.html
+https://sprightly-donut-6db8c8.netlify.app/verify.html
+https://sprightly-donut-6db8c8.netlify.app/login.html
+https://sprightly-donut-6db8c8.netlify.app/admin_dashboard.html
 ```
 
 ---
@@ -462,7 +462,7 @@ netlify.toml
 
 ```txt
 APP_NAME = Emergency Room Parking
-LIVE_SITE_URL = https://garagey.netlify.app
+LIVE_SITE_URL = https://sprightly-donut-6db8c8.netlify.app
 SUPABASE_URL = https://qinsfvlspdticposbvst.supabase.co
 SUPABASE_ANON_KEY = تم إدخاله داخل ملفات HTML
 ```

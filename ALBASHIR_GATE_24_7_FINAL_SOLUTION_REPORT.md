@@ -92,7 +92,7 @@ public.cleanup_expired_qr_sessions()
 
 الحالة: **منفذ**
 
-- `CACHE_VERSION` موحد على `emergency-room-parking-offline-v13`.
+- `CACHE_VERSION` موحد على `emergency-room-parking-offline-v14`.
 - HTML يعمل network-first.
 - الأصول تعمل بتحديث آمن مع fallback.
 - التثبيت لا يفشل بالكامل إذا فشل تخزين أصل واحد.
