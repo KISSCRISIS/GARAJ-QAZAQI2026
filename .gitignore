@@ -1,0 +1,14 @@
+# Private administrator bootstrap data
+setup_sub_admins.sql
+*Supabase Snippet*.csv
+
+# Local reports and visual checks
+*-desktop.png
+*-mobile.png
+*-long.png
+FINAL_CHECK_REPORT.txt
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/

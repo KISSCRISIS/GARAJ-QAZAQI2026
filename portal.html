@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>بوابة الدخول الموحدة | ALBASHIR EMERGENCY HOSPITAL Gate</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="apple-touch-icon" href="./logo.jpeg" />
+  <link rel="manifest" href="./manifest.json" />
+  <script src="./supabase.min.js"></script>
+  <script src="./access-control.js"></script>
+  <style>
+    :root{--bg:#020b17;--panel:rgba(5,27,49,.94);--line:rgba(56,189,248,.25);--text:#eaf6ff;--muted:#9fb3c8;--blue:#0ea5e9;--green:#22c55e;--red:#ef4444}
+    *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:"Segoe UI",Tahoma,Arial,sans-serif;color:var(--text)}body{display:flex;flex-direction:column;background:linear-gradient(110deg,rgba(1,10,23,.88),rgba(2,31,55,.56)),url("./hospital-hero.png") center/cover fixed no-repeat}.portal{width:min(1040px,100%);margin:auto;padding:24px 16px}.header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}.brand{display:flex;align-items:center;gap:18px}.logo{width:132px;height:132px;border-radius:50%;object-fit:contain;filter:drop-shadow(0 18px 28px rgba(0,0,0,.38))}h1{margin:0;font-size:30px;text-shadow:0 2px 18px rgba(0,0,0,.55)}.subtitle{color:#dff5ff;font-size:14px;margin-top:5px}.online{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid rgba(34,197,94,.42);border-radius:999px;background:rgba(1,23,35,.72);color:#bbf7d0;font-size:12px;backdrop-filter:blur(12px)}.online::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--green)}.card{padding:20px;border:1px solid var(--line);border-radius:16px;background:rgba(3,22,41,.91);box-shadow:0 28px 80px rgba(0,0,0,.42);backdrop-filter:blur(18px)}.role-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px}.role-tab{border:1px solid rgba(148,163,184,.2);border-radius:11px;padding:12px;background:#071b30;color:#bfdbfe;font:inherit;font-weight:900;cursor:pointer}.role-tab.active{background:linear-gradient(135deg,#0284c7,#075985);color:#fff;border-color:#38bdf8}.role-panel{display:none}.role-panel.active{display:block}.role-head{margin-bottom:14px}.role-head h2{margin:0 0 5px;font-size:21px}.role-head p{margin:0;color:var(--muted);font-size:13px;line-height:1.7}.form{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end}.field{display:grid;gap:6px}.field label{font-size:12px;color:#bfdbfe}.field input{width:100%;padding:11px;border:1px solid rgba(148,163,184,.25);border-radius:10px;background:#020d1b;color:#fff;font:inherit}.action,button.action{border:0;border-radius:10px;padding:11px 15px;background:linear-gradient(135deg,#0284c7,#0ea5e9);color:#fff;font:inherit;font-weight:900;cursor:pointer;white-space:nowrap}.action.green{background:linear-gradient(135deg,#15803d,#22c55e)}button:disabled{opacity:.55;cursor:not-allowed}.notice{display:none;margin-bottom:14px;padding:11px 13px;border-radius:10px;border:1px solid var(--line);background:rgba(14,165,233,.1);font-size:13px}.notice.show{display:block}.notice.error{color:#fecaca;border-color:rgba(239,68,68,.42);background:rgba(239,68,68,.08)}.notice.ok{color:#bbf7d0;border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.08)}.onboarding{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:15px;padding-top:14px;border-top:1px solid rgba(148,163,184,.16);color:var(--muted);font-size:12px}.continue{display:none;margin-bottom:14px;padding:12px;border:1px solid rgba(34,197,94,.35);border-radius:11px;background:rgba(34,197,94,.08);align-items:center;justify-content:space-between;gap:10px}.continue.show{display:flex}.footer-note{text-align:center;color:#7fa3bd;font-size:11px;margin-top:14px}@media(max-width:720px){body{background-position:62% center}.portal{padding:14px 10px}.header{align-items:center;flex-direction:column;text-align:center}.brand{flex-direction:column;gap:8px}.logo{width:104px;height:104px}.online{align-self:center}.role-tabs{grid-template-columns:1fr}.form{grid-template-columns:1fr}.onboarding,.continue{align-items:stretch;flex-direction:column}h1{font-size:23px}}
+  </style>
+  <link rel="stylesheet" href="./global-theme.css" />
+</head>
+<body class="hospital-ui theme-portal">
+<main class="portal">
+  <header class="header"><div class="brand"><img class="logo" src="./albashir-gate-logo.png" alt="البشير ALBASHIR Gate" /><div><h1>بوابة الدخول الموحدة</h1><div class="subtitle">البشير ALBASHIR Gate · ALBASHIR EMERGENCY HOSPITAL</div></div></div><div class="online">النظام متصل</div></header>
+  <section class="card">
+    <div id="notice" class="notice"></div>
+    <div id="continueSession" class="continue"><span id="continueText"></span><button class="action green" type="button" onclick="continueSession()">متابعة</button></div>
+    <div class="role-tabs">
+      <button class="role-tab active" data-role="employee" type="button">موظف</button>
+      <button class="role-tab" data-role="guard" type="button">حارس</button>
+      <button class="role-tab" data-role="admin" type="button">الإدارة</button>
+    </div>
+
+    <section class="role-panel active" id="employeePanel"><div class="role-head"><h2>دخول الموظف</h2><p>الملف الشخصي وبطاقة الوصول ومسح QR من شاشة الحارس.</p></div><form class="form" id="employeeForm"><div class="field"><label for="employeeId">الرقم الوظيفي/الوطني</label><input id="employeeId" required autocomplete="username" /></div><div class="field"><label for="employeePhone">رقم الهاتف</label><input id="employeePhone" required type="tel" autocomplete="tel" /></div><button class="action" type="submit">دخول الموظف</button></form><div class="onboarding"><span>موظف جديد ولم يتم تسجيله بعد؟</span><button class="action green" type="button" onclick="startOnboarding()">طلب تسجيل جديد</button></div></section>
+
+    <section class="role-panel" id="guardPanel"><div class="role-head"><h2>شاشة الحارس</h2><p>شاشة الحارس مفتوحة ولا تتطلب تسجيل دخول أو بريدًا إلكترونيًا أو كلمة مرور.</p></div><button class="action green" type="button" onclick="openGuardScreen()">فتح شاشة الحارس</button></section>
+
+    <section class="role-panel" id="adminPanel"><div class="role-head"><h2>دخول الإدارة</h2><p>سيتم توجيه SUPER_ADMIN وADMIN تلقائيًا حسب صلاحيات الحساب.</p></div><form class="form" id="adminForm"><div class="field"><label for="adminEmail">البريد الإلكتروني</label><input id="adminEmail" required type="email" autocomplete="username" /></div><div class="field"><label for="adminPassword">كلمة المرور</label><input id="adminPassword" required type="password" autocomplete="current-password" /></div><button class="action" type="submit">فتح لوحة الإدارة</button></form></section>
+    <div class="footer-note">تُخفى الصفحات غير المصرح بها ويعاد توجيه المستخدم إلى هذه البوابة.</div>
+  </section>
+</main>
+<script>
+  const CONFIG={url:"https://qinsfvlspdticposbvst.supabase.co",key:"sb_publishable_okoDqbwZNNvrCZQ025RkPw_qFXkA7I8"};
+  const client=window.supabase?.createClient(CONFIG.url,CONFIG.key);const $=id=>document.getElementById(id);const next=new URLSearchParams(location.search).get("next")||"";
+  function show(message,type="error"){const el=$("notice");el.textContent=message;el.className=`notice show ${type}`;}
+  function cleanNext(value){const allowed=["index.html","verify.html","profile.html","admin_dashboard.html"];const file=String(value||"").split("?")[0].split("#")[0];return allowed.includes(file)?String(value):"";}
+  function targetFor(role){const requested=cleanNext(next);if(requested){if(role==="GUARD"&&requested.startsWith("index.html"))return requested;if(role==="EMPLOYEE"&&/^(verify|profile)\.html/.test(requested))return requested;if(role==="EMPLOYEE_ONBOARDING"&&requested.startsWith("verify.html"))return requested;if(["ADMIN","SUPER_ADMIN"].includes(role)&&requested.startsWith("admin_dashboard.html"))return requested;}return role==="GUARD"?"index.html":role==="EMPLOYEE"?"profile.html":role==="EMPLOYEE_ONBOARDING"?"verify.html":"admin_dashboard.html";}
+  function go(role,extra={}){ALBASHIRAccess.setSession(role,extra);location.replace(`./${targetFor(role)}`);}
+  document.querySelectorAll(".role-tab").forEach(tab=>tab.addEventListener("click",()=>{document.querySelectorAll(".role-tab").forEach(x=>x.classList.toggle("active",x===tab));document.querySelectorAll(".role-panel").forEach(panel=>panel.classList.toggle("active",panel.id===`${tab.dataset.role}Panel`));}));
+  const DEVICE_TOKEN_KEY="erp_trusted_device_token_v1",DEVICE_ID_KEY="erp_trusted_device_id_v1";
+  function deviceId(){let id=localStorage.getItem(DEVICE_ID_KEY);if(!id){id="mobile-"+(crypto.randomUUID?.()||Date.now().toString(36)+"-"+Math.random().toString(16).slice(2));localStorage.setItem(DEVICE_ID_KEY,id);}return id;}
+  function deviceToken(){const bytes=new Uint8Array(48);crypto.getRandomValues(bytes);return Array.from(bytes,b=>b.toString(16).padStart(2,"0")).join("");}
+  function deviceType(){return /iPad|iPhone|iPod/i.test(navigator.userAgent)?"iOS":/Android/i.test(navigator.userAgent)?"Android":"Web";}
+  async function trustAfterVerifiedLogin(employeeId,mobileNumber){
+    try{const eligibility=await client.rpc("can_register_trusted_device",{p_employee_id:employeeId,p_mobile_number:mobileNumber});const check=Array.isArray(eligibility.data)?eligibility.data[0]:eligibility.data;if(eligibility.error||!check?.eligible)return;const token=deviceToken();const response=await client.rpc("register_trusted_device_with_metadata",{p_employee_id:employeeId,p_mobile_number:mobileNumber,p_device_token:token,p_device_id:deviceId(),p_device_type:deviceType(),p_device_name:navigator.platform||"Mobile Browser",p_user_agent:navigator.userAgent});const result=Array.isArray(response.data)?response.data[0]:response.data;if(!response.error&&result?.ok)localStorage.setItem(DEVICE_TOKEN_KEY,token);}catch(_){}
+  }
+  async function identityLogin(event){event.preventDefault();const button=event.submitter;button.disabled=true;try{if(!client)throw new Error("تعذر الاتصال بالنظام");const employeeId=$("employeeId").value.trim(),mobileNumber=$("employeePhone").value.trim();const {data,error}=await client.rpc("employee_profile_login",{p_employee_id:employeeId,p_mobile_number:mobileNumber});if(error)throw error;const result=Array.isArray(data)?data[0]:data;if(!result?.ok)throw new Error(result?.message||"بيانات الدخول غير صحيحة");await trustAfterVerifiedLogin(employeeId,mobileNumber);go("EMPLOYEE",{employeeId,mobileNumber,fullName:result.profile?.full_name||""});}catch(error){show(error.message||"تعذر تسجيل الدخول");}finally{button.disabled=false;}}
+  async function adminLogin(event){event.preventDefault();const button=event.submitter;button.disabled=true;try{if(!client)throw new Error("تعذر الاتصال بالنظام");const {data,error}=await client.auth.signInWithPassword({email:$("adminEmail").value.trim(),password:$("adminPassword").value});if(error)throw error;const response=await client.rpc("get_my_admin_profile");if(response.error)throw response.error;const profile=Array.isArray(response.data)?response.data[0]:response.data;if(!profile?.ok)throw new Error(profile?.message||"الحساب غير مصرح له بالإدارة");const role=profile.role==="SUPER_ADMIN"?"SUPER_ADMIN":"ADMIN";go(role,{email:data.user.email});}catch(error){show(error.message||"تعذر تسجيل الدخول");}finally{button.disabled=false;}}
+  $("employeeForm").addEventListener("submit",identityLogin);$("adminForm").addEventListener("submit",adminLogin);
+  function openGuardScreen(){ALBASHIRAccess.setSession("GUARD",{openAccess:true});location.replace("./index.html");}
+  function startOnboarding(){go("EMPLOYEE_ONBOARDING");}
+  function continueSession(){const session=ALBASHIRAccess.readSession();if(session)location.replace(`./${targetFor(session.role)}`);}
+  const active=ALBASHIRAccess.readSession();if(active){$("continueText").textContent=`جلسة فعالة بدور ${active.role}`;$("continueSession").classList.add("show");}
+  async function fastTrustedLogin(){if(active||sessionStorage.getItem("alb_skip_fast_device_once")==="1"){sessionStorage.removeItem("alb_skip_fast_device_once");return;}const token=localStorage.getItem(DEVICE_TOKEN_KEY);if(!token||!client)return;try{const {data,error}=await client.rpc("trusted_device_profile_login",{p_device_token:token});const result=Array.isArray(data)?data[0]:data;if(error||!result?.ok){if(result?.clear_device)localStorage.removeItem(DEVICE_TOKEN_KEY);return;}go("EMPLOYEE",{employeeId:result.profile.employee_id,mobileNumber:result.profile.mobile_number,fullName:result.profile.full_name||""});}catch(_){} }
+  fastTrustedLogin();
+  if("serviceWorker" in navigator)navigator.serviceWorker.register("./service-worker.js").catch(()=>{});
+</script>
+<script src="./global-leadership.js"></script>
+</body>
+</html>

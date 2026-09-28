@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>الملف الشخصي | ALBASHIR EMERGENCY HOSPITAL Gate</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="apple-touch-icon" href="./logo.jpeg" />
+  <link rel="manifest" href="./manifest.json" />
+  <script src="./access-control.js" data-roles="EMPLOYEE"></script>
+  <script src="./supabase.min.js"></script>
+  <style>
+    :root{--bg:#041426;--panel:rgba(8,35,61,.92);--line:rgba(56,189,248,.24);--text:#e5f2ff;--muted:#9fb3c8;--blue:#0ea5e9;--green:#22c55e;--red:#ef4444;--orange:#fb923c}
+    *{box-sizing:border-box} html,body{margin:0;min-height:100%;font-family:"Segoe UI",Tahoma,Arial,sans-serif;background:radial-gradient(circle at 80% 0%,rgba(14,165,233,.2),transparent 34%),linear-gradient(145deg,#020b17,var(--bg));color:var(--text)}
+    a{color:#bae6fd;text-decoration:none}.shell{width:min(1100px,100%);margin:auto;padding:18px}.topbar{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:15px 18px;margin-bottom:16px;border:1px solid var(--line);border-radius:16px;background:rgba(2,13,27,.9);box-shadow:0 14px 40px rgba(0,0,0,.22)}.brand{display:flex;align-items:center;gap:12px}.logo{width:48px;height:48px;border-radius:14px;object-fit:cover}.title{margin:0;font-size:24px}.subtitle{color:#bfdbfe;font-size:12px;margin-top:4px}.nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.btn,button{border:0;border-radius:11px;padding:11px 14px;font:inherit;font-size:13px;font-weight:800;cursor:pointer;color:white;background:linear-gradient(135deg,#0284c7,#0ea5e9)}button.soft,.btn.soft{background:rgba(15,23,42,.7);border:1px solid var(--line)}button:disabled{opacity:.55;cursor:not-allowed}.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 18px 42px rgba(0,0,0,.17)}h2{margin:0 0 8px;font-size:21px}.desc{color:var(--muted);line-height:1.7;font-size:13px}.notice{padding:12px 14px;border-radius:12px;background:rgba(14,165,233,.12);border:1px solid var(--line);color:#dbeafe;margin-bottom:14px}.notice.error{border-color:rgba(239,68,68,.45);color:#fecaca}.notice.ok{border-color:rgba(34,197,94,.45);color:#bbf7d0}.hidden{display:none!important}.login-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end;max-width:700px}.field{display:grid;gap:6px}.field label{font-size:12px;color:#bfdbfe}.field input,.field textarea{width:100%;border:1px solid rgba(148,163,184,.24);border-radius:10px;background:rgba(2,8,19,.55);color:var(--text);padding:11px;font:inherit}.profile-head{display:flex;align-items:center;gap:18px;margin-bottom:18px}.photo{width:112px;height:112px;object-fit:cover;border-radius:18px;border:2px solid rgba(56,189,248,.32);background:#0b2945}.status{display:inline-flex;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:900;background:rgba(56,189,248,.12);border:1px solid var(--line)}.status.APPROVED{color:#bbf7d0;border-color:rgba(34,197,94,.4)}.status.PENDING{color:#fed7aa;border-color:rgba(251,146,60,.4)}.status.REJECTED{color:#fecaca;border-color:rgba(239,68,68,.4)}.profile-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.info{padding:12px;border:1px solid rgba(148,163,184,.16);border-radius:12px;background:rgba(2,13,27,.42)}.info span{display:block;color:var(--muted);font-size:11px;margin-bottom:5px}.info strong{font-size:14px}.table-wrap{overflow:auto;border:1px solid rgba(148,163,184,.15);border-radius:12px}table{width:100%;border-collapse:collapse;min-width:620px;font-size:12px}th,td{text-align:right;padding:11px;border-bottom:1px solid rgba(148,163,184,.12)}th{background:#082b4b;color:#dbeafe}.request-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.footer{text-align:center;color:var(--muted);font-size:11px;padding:18px}@media(max-width:700px){.shell{padding:10px}.topbar{align-items:flex-start;flex-direction:column}.nav{width:100%}.nav .btn{flex:1;text-align:center}.login-grid,.profile-grid,.request-grid{grid-template-columns:1fr}.profile-head{align-items:flex-start;flex-direction:column}.photo{width:96px;height:96px}}
+  </style>
+  <link rel="stylesheet" href="./global-theme.css" />
+</head>
+<body class="hospital-ui theme-profile">
+<main class="shell">
+  <header class="topbar">
+    <div class="brand"><img class="logo" src="./albashir-gate-logo.png" alt="البشير ALBASHIR Gate" /><div><h1 class="title">الملف الشخصي للموظف</h1><div class="subtitle">ALBASHIR EMERGENCY HOSPITAL Gate — Employee Profile</div></div></div>
+    <nav class="nav"><a class="btn soft" href="./verify.html">التحقق من الدخول</a><a class="btn soft" href="./index.html">شاشة الحارس</a></nav>
+  </header>
+
+  <div id="notice" class="notice hidden"></div>
+  <section id="loginPanel" class="panel">
+    <h2>تسجيل الدخول إلى الملف الشخصي</h2>
+    <p class="desc">استخدم الرقم الوظيفي/الوطني ورقم الهاتف للتحقق من هويتك. بيانات الهوية للعرض فقط ولا يمكن تعديلها مباشرة.</p>
+    <form id="loginForm" class="login-grid">
+      <div class="field"><label for="loginEmployeeId">الرقم الوظيفي/الوطني</label><input id="loginEmployeeId" required autocomplete="username" /></div>
+      <div class="field"><label for="loginPhone">رقم الهاتف</label><input id="loginPhone" required type="tel" autocomplete="tel" /></div>
+      <button type="submit">فتح الملف الشخصي</button>
+    </form>
+  </section>
+
+  <section id="profilePanel" class="panel hidden">
+    <div class="profile-head"><img id="profilePhoto" class="photo" alt="صورة الموظف" /><div><h2 id="profileName">-</h2><div id="profileStatus" class="status">-</div><p class="desc">بيانات الهوية مقفلة. استخدم طلب تغيير البيانات عند الحاجة.</p></div></div>
+    <div id="profileInfo" class="profile-grid"></div>
+  </section>
+
+  <section id="historyPanel" class="panel hidden"><h2>سجل تحقق QR</h2><p class="desc">آخر عمليات التحقق والدخول المسجلة على الموظف.</p><div class="table-wrap"><table><thead><tr><th>الوقت</th><th>النتيجة</th><th>السبب</th><th>الاختصاص</th></tr></thead><tbody id="historyBody"></tbody></table></div></section>
+
+  <section id="requestPanel" class="panel hidden">
+    <h2>طلب تغيير البيانات</h2><p class="desc">لا يتم تعديل أي بيانات إلا بعد مراجعة وموافقة SUPER_ADMIN أو ADMIN.</p>
+    <form id="changeForm">
+      <div class="request-grid">
+        <div class="field"><label for="changeName">الاسم المطلوب</label><input id="changeName" /></div>
+        <div class="field"><label for="changeId">الرقم الوظيفي/الوطني المطلوب</label><input id="changeId" /></div>
+        <div class="field"><label for="changePhone">الهاتف المطلوب</label><input id="changePhone" type="tel" /></div>
+        <div class="field"><label for="changeDepartment">القسم المطلوب</label><input id="changeDepartment" /></div>
+        <div class="field"><label for="changeSpecialty">الاختصاص المطلوب</label><input id="changeSpecialty" /></div>
+        <div class="field"><label for="changeJobType">الوظيفة المطلوبة</label><input id="changeJobType" /></div>
+        <div class="field"><label for="changeVehicleType">نوع المركبة</label><input id="changeVehicleType" /></div>
+        <div class="field"><label for="changeVehiclePlate">رقم اللوحة</label><input id="changeVehiclePlate" /></div>
+        <div class="field"><label for="changeVehicleColor">لون المركبة</label><input id="changeVehicleColor" /></div>
+      </div>
+      <div class="field" style="margin-top:10px"><label for="changeReason">سبب التغيير</label><textarea id="changeReason" rows="3" required></textarea></div>
+      <button type="submit" style="margin-top:10px">إرسال طلب التغيير</button>
+    </form>
+  </section>
+  <footer class="footer">ALBASHIR EMERGENCY HOSPITAL — Employee Profile</footer>
+</main>
+<script>
+  const APP_CONFIG={SUPABASE_URL:"https://qinsfvlspdticposbvst.supabase.co",SUPABASE_ANON_KEY:"sb_publishable_okoDqbwZNNvrCZQ025RkPw_qFXkA7I8"};
+  const client=window.supabase?.createClient(APP_CONFIG.SUPABASE_URL,APP_CONFIG.SUPABASE_ANON_KEY); let credentials=null; let profile=null;
+  const $=id=>document.getElementById(id); const esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+  function notice(message,type="warning"){const el=$("notice");el.textContent=message;el.className="notice"+(type==="error"?" error":type==="ok"?" ok":"");}
+  function date(v){return v?new Date(v).toLocaleString("ar-JO",{dateStyle:"medium",timeStyle:"short"}):"-";}
+  function status(v){return `<span class="status ${esc(v)}">${esc(v||"-")}</span>`;}
+  function render(data){profile=data.profile;credentials={employeeId:profile.employee_id,mobileNumber:profile.mobile_number};$("loginPanel").classList.add("hidden");$("profilePanel").classList.remove("hidden");$("historyPanel").classList.remove("hidden");$("requestPanel").classList.remove("hidden");$("profileName").textContent=profile.full_name||"-";$("profileStatus").outerHTML=`<div id="profileStatus" class="status ${esc(profile.status)}">${esc(profile.status||"-")}</div>`;$("profilePhoto").src=profile.employee_photo_url||"./logo.jpeg";const fields=[["الرقم الوظيفي/الوطني",profile.employee_id],["الهاتف",profile.mobile_number],["القسم",profile.department],["الاختصاص",profile.specialty],["الوظيفة",profile.job_type],["المركبة",profile.vehicle_type],["رقم اللوحة",profile.vehicle_plate],["لون المركبة",profile.vehicle_color],["آخر نشاط جهاز موثوق",date(profile.trusted_device_last_activity_at)]];$("profileInfo").innerHTML=fields.map(([label,value])=>`<div class="info"><span>${label}</span><strong>${esc(value||"-")}</strong></div>`).join("");$("historyBody").innerHTML=(data.qr_history||[]).map(row=>`<tr><td>${date(row.created_at)}</td><td>${status(row.result)}</td><td>${esc(row.reason||"-")}</td><td>${esc(row.specialty||"-")}</td></tr>`).join("")||`<tr><td colspan="4">لا توجد عمليات تحقق بعد.</td></tr>`;["Name","Id","Phone","Department","Specialty","JobType","VehicleType","VehiclePlate","VehicleColor"].forEach((key,index)=>{const value=[profile.full_name,profile.employee_id,profile.mobile_number,profile.department,profile.specialty,profile.job_type,profile.vehicle_type,profile.vehicle_plate,profile.vehicle_color][index];$("change"+key).value=value||"";});}
+  $("loginForm").addEventListener("submit",async e=>{e.preventDefault();if(!client){notice("تعذر الاتصال بالنظام.","error");return;}const button=e.submitter||e.currentTarget.querySelector('button[type="submit"]');if(button)button.disabled=true;try{const {data,error}=await client.rpc("employee_profile_login",{p_employee_id:$("loginEmployeeId").value.trim(),p_mobile_number:$("loginPhone").value.trim()});if(error)throw error;const result=Array.isArray(data)?data[0]:data;if(!result?.ok)throw new Error(result?.message||"بيانات الدخول غير صحيحة");render(result);notice("تم فتح الملف الشخصي.","ok");}catch(err){notice(err.message||"تعذر فتح الملف الشخصي.","error");}finally{if(button)button.disabled=false;}});
+  $("changeForm").addEventListener("submit",async e=>{e.preventDefault();if(!credentials)return;const button=e.submitter;button.disabled=true;try{const changes={full_name:$("changeName").value.trim(),employee_id:$("changeId").value.trim(),mobile_number:$("changePhone").value.trim(),department:$("changeDepartment").value.trim(),specialty:$("changeSpecialty").value.trim(),job_type:$("changeJobType").value.trim(),vehicle_type:$("changeVehicleType").value.trim(),vehicle_plate:$("changeVehiclePlate").value.trim(),vehicle_color:$("changeVehicleColor").value.trim()};const {data,error}=await client.rpc("employee_request_data_change",{p_employee_id:credentials.employeeId,p_mobile_number:credentials.mobileNumber,p_requested_changes:changes,p_reason:$("changeReason").value.trim()});if(error)throw error;const result=Array.isArray(data)?data[0]:data;if(!result?.ok)throw new Error(result?.message||"تعذر إرسال الطلب");notice(result.message||"تم إرسال الطلب.","ok");$("changeReason").value="";}catch(err){notice(err.message||"تعذر إرسال الطلب.","error");}finally{button.disabled=false;}});
+  const query=new URLSearchParams(location.search);if(query.get("employee_id"))$("loginEmployeeId").value=query.get("employee_id");
+  const portalSession=window.ALBASHIRAccess?.readSession();
+  if(portalSession?.role==="EMPLOYEE"&&portalSession.employeeId&&portalSession.mobileNumber){$("loginEmployeeId").value=portalSession.employeeId;$("loginPhone").value=portalSession.mobileNumber;setTimeout(()=>$("loginForm").requestSubmit(),0);}
+  if("serviceWorker" in navigator)navigator.serviceWorker.register("./service-worker.js").catch(()=>{});
+</script>
+<script src="./global-leadership.js"></script>
+</body>
+</html>
