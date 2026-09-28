@@ -37,8 +37,18 @@
 
   function getClient() {
     if (!window.supabase?.createClient) return null;
+    try {
+      if (typeof supabaseClient !== "undefined" && supabaseClient) return supabaseClient;
+      if (typeof client !== "undefined" && client) return client;
+    } catch (_) {}
     if (!window.__albLeadershipClient) {
-      window.__albLeadershipClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      window.__albLeadershipClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false
+        }
+      });
     }
     return window.__albLeadershipClient;
   }
