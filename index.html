@@ -1396,19 +1396,16 @@
         const { data, error } = await rpcWithTimeout(
           (signal) =>
             supabaseClient
-              .rpc("create_qr_session", {
-                p_device_token: getOfflineDeviceToken()
-              })
+              .rpc("create_qr_session", qrSessionPayload)
               .abortSignal?.(signal)
               ||
-              supabaseClient.rpc("create_qr_session", {
-                p_device_token: getOfflineDeviceToken()
-              }),
+              supabaseClient.rpc("create_qr_session", qrSessionPayload),
           QR_REQUEST_TIMEOUT_MS,
           "انتهت مهلة إنشاء QR من Supabase"
         );
         qrRuntime.lastRpcMs = Math.round(performance.now() - rpcStartedAt);
         const result = normalizeRpcData(data);
+        console.log("[QR DEBUG] create_qr_session response:", { data, result, error });
 
         if (error) {
           throw new Error(error.message || JSON.stringify(error));
