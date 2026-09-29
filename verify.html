@@ -149,7 +149,7 @@
         <div class="section-title">التحقق السريع من هذا الجهاز</div>
         <div id="autoDeviceText" class="desc">يمكن ربط الجهاز بعد موافقة الإدارة.</div>
         <div class="device-actions">
-          <button type="button" id="enableAutoDeviceButton" class="green" onclick="enableTrustedDeviceOnThisBrowser()">تفعيل الجهاز</button>
+          <button type="button" id="enableAutoDeviceButton" class="green" onclick="enableTrustedDeviceOnThisBrowser()">تسجيل هذا الجهاز للدخول السريع</button>
           <button type="button" class="soft" onclick="forgetTrustedDeviceOnThisBrowser()">نسيان الجهاز</button>
         </div>
       </div>
@@ -221,7 +221,7 @@
   const APP_CONFIG = {
     APP_NAME: "ALBASHIR EMERGENCY HOSPITAL",
     SUPABASE_URL: "https://qinsfvlspdticposbvst.supabase.co",
-    SUPABASE_ANON_KEY: "sb_publishable_okoDqbwZNNvrCZQ025RkPw_qFXkA7I8"
+    SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpbnNmdmxzcGR0aWNwb3NidnN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA1OTY5MjgsImV4cCI6MjEwNjE3MjkyOH0.6HsEob0w4BOD0VYt_KgzYEYpCBQgbciCP7nJ-owqqTY"
   };
 
   let supabaseClient = null;
@@ -341,7 +341,7 @@
       icon.textContent="◆"; title.textContent="تمت العملية";
     }
 
-    msg.textContent=message || "تمت العملية.";
+    msg.textContent=result==="PENDING"?"طلبك قيد المراجعة.\nبعد اعتماد الإدارة سيصبح جهازك جاهزًا للدخول عبر QR.":message || "تمت العملية.";
     if(employee){
       details.innerHTML=renderEmployeeDetails(employee);
       details.classList.remove("hidden");
@@ -842,7 +842,7 @@
       }else{
         showManualSections(true);
         setAutoDevicePanel(
-          result.message || "تعذر الدخول التلقائي. استخدم تسجيل الدخول اليدوي.",
+          result.message || "تعذر التحقق التلقائي. تأكد من اعتماد الحساب من الإدارة.",
           "warning",
           true
         );
@@ -850,7 +850,7 @@
     }catch(err){
       showManualSections(true);
       setResult("DENIED","تعذر التحقق التلقائي: "+err.message);
-      setAutoDevicePanel("استخدم تسجيل الدخول اليدوي، ثم أعد تفعيل الجهاز عند الحاجة.","warning",true);
+      setAutoDevicePanel("تعذر التحقق التلقائي. تأكد من اعتماد الحساب من الإدارة.","warning",true);
     }
   }
 
@@ -916,7 +916,7 @@
       const {data,error}=await supabaseClient.rpc("register_employee_request",payload);
       const result=normalizeRpcData(data,"register_employee_request") || data;
       if(error || !result) throw new Error(error?.message||"فشل إرسال الطلب.");
-      setResult(result.result||"PENDING",result.message||"تم إرسال الطلب.",result.employee||null);
+      setResult(result.result||"PENDING","تم إرسال طلب التسجيل بنجاح.\nحالة الحساب الآن: قيد المراجعة.\nبعد اعتماد الإدارة سيصبح الدخول متاحًا تلقائيًا.",result.employee||null);
       if(result.ok===true){
         saveTrustedDeviceToken(pendingDeviceToken);
         $("registerForm").reset();
