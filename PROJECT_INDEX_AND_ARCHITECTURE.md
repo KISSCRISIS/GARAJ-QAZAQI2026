@@ -49,8 +49,14 @@ Admin Dashboard
 7. schema_patch_employee_profiles.sql
 8. schema_patch_trusted_device_registration_flow.sql
 9. schema_patch_trusted_device_metadata.sql
-10. schema_patch_gate_qr_device_auth.sql
-11. schema_patch_production_hardening.sql
+10. schema_patch_production_hardening.sql
+11. schema_patch_gate_qr_device_auth.sql
+
+Migration dependencies:
+
+- Run `schema_patch_pgcrypto_schema_fix.sql` before patches that depend on the trusted-device and offline-device hashing functions.
+- Include `schema_patch_trusted_device_registration_flow.sql` because it provides the employee trusted-device registration, approval, and pending-to-trusted promotion flow.
+- Run `schema_patch_gate_qr_device_auth.sql` last because it overrides `create_qr_session()` and replaces the unsecured QR-generation flow with trusted guard-device authentication.
 
 ## 4. Critical Tables
 
