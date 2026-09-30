@@ -1839,17 +1839,10 @@
           throw new Error(upload.error.message);
         }
 
-        const publicUrl = supabaseClient
-          .storage
-          .from("violation-photos")
-          .getPublicUrl(path)
-          .data
-          .publicUrl;
-
         const { data, error } = await supabaseClient.rpc("submit_violation_report", {
           p_employee_id: $("violationEmployee").value,
           p_note: $("violationNote").value,
-          p_photo_url: publicUrl
+          p_photo_url: path
         });
 
         if (error || !data || data.ok !== true) {
