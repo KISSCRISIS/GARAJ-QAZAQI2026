@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- V1.6 QR FIX: local QR rendering first + external fallback -->
+<!-- QR sessions are issued only after Supabase validates an approved gate device. -->
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" href="./logo.jpeg" />
   <link rel="manifest" href="./manifest.json" />
 
-  <!-- Supabase stays online; QR is local so the guard screen can render it offline. -->
+  <!-- QR rendering is local, but every displayed URL must come from a validated Supabase session. -->
   <script src="./supabase.min.js"></script>
   <script src="./qrcode.min.js"></script>
 
@@ -935,11 +935,15 @@
       realtimeStatus: "غير متصل",
       lastError: "",
       lastSecureUrl: "",
+      gateDeviceApproved: false,
+      heartbeatVerifiedAt: null,
+      heartbeatLastError: "",
       startedAt: Date.now()
     };
     const CACHE_VERSION = "emergency-room-parking-offline-v14";
     const LAST_VALID_QR_STORAGE_KEY = "erp_last_valid_qr_v2";
     const GATE_ERROR_RING_KEY = "erp_gate_error_ring_v1";
+    const GATE_AUDIT_QUEUE_KEY = "erp_gate_audit_queue_v1";
     const GATE_DEVICE_STORAGE_KEY = "erp_gate_device_v1";
     const OFFLINE_DEVICE_TOKEN_STORAGE_KEY = "erp_offline_device_token_v1";
     const lifecycle = {
@@ -1028,6 +1032,100 @@
       } catch {
         localStorage.setItem(GATE_ERROR_RING_KEY, JSON.stringify([entry]));
       }
+    }
+
+    function queueGateAuditEvent(action, source, error, details = {}) {
+      const message = error?.message || String(error || "");
+      const event = {
+        id: "gate-audit-" + Date.now().toString(36) + "-" + Math.random().toString(16).slice(2),
+        at: new Date().toISOString(),
+        action,
+        source,
+        message,
+        details
+      };
+      try {
+        const queue = JSON.parse(localStorage.getItem(GATE_AUDIT_QUEUE_KEY) || "[]");
+        const duplicate = queue.some((item) => (
+          item.action === action &&
+          item.message === message &&
+          Date.now() - Date.parse(item.at || 0) < 5 * 60 * 1000
+        ));
+        if (!duplicate) {
+          queue.push(event);
+          localStorage.setItem(GATE_AUDIT_QUEUE_KEY, JSON.stringify(queue.slice(-50)));
+        }
+      } catch (queueError) {
+        recordGateError("queueGateAuditEvent", queueError);
+      }
+    }
+
+    async function flushGateAuditEvents() {
+      if (!supabaseClient || !navigator.onLine) return false;
+      let queue = [];
+      try {
+        queue = JSON.parse(localStorage.getItem(GATE_AUDIT_QUEUE_KEY) || "[]");
+      } catch (error) {
+        recordGateError("readGateAuditQueue", error);
+        return false;
+      }
+      if (!queue.length) return true;
+
+      const device = getGateDevice();
+      const logs = queue.map((event) => ({
+        client_log_id: event.id,
+        gate_device_code: device.device_code,
+        gate_name: device.gate_name,
+        employee_id: null,
+        mobile_number: null,
+        full_name: null,
+        specialty: null,
+        result: "DENIED",
+        reason: event.action,
+        qr_token: null,
+        offline_created_at: event.at,
+        payload: {
+          event_type: event.action,
+          source: event.source,
+          message: event.message,
+          details: event.details || {}
+        }
+      }));
+
+      try {
+        const { data, error } = await rpcWithTimeout(
+          () => supabaseClient.rpc("sync_offline_access_logs", {
+              p_device_code: device.device_code,
+              p_logs: logs,
+              p_device_token: getOfflineDeviceToken()
+            }),
+          QR_REQUEST_TIMEOUT_MS,
+          "انتهت مهلة إرسال حدث التدقيق"
+        );
+        const result = normalizeRpcData(data);
+        if (error || !result || result.ok !== true) {
+          throw new Error(error?.message || result?.message || "تعذر إرسال حدث التدقيق");
+        }
+        localStorage.removeItem(GATE_AUDIT_QUEUE_KEY);
+        return true;
+      } catch (error) {
+        recordGateError("flushGateAuditEvents", error);
+        return false;
+      }
+    }
+
+    async function reportHeartbeatIssue(error, options = {}) {
+      const source = options.source || "gateHeartbeat";
+      const action = options.action || "GATE_HEARTBEAT_ERROR";
+      const warning = options.warning || "النظام غير متاح حالياً";
+      recordGateError(source, error);
+      console.error("Gate device heartbeat failed:", error);
+      showSetupWarning(warning, "error");
+      queueGateAuditEvent(action, source, error, {
+        device_code: getGateDevice().device_code,
+        pending_approval: options.pendingApproval === true
+      });
+      await flushGateAuditEvents();
     }
 
     function withTimeout(promise, timeoutMs, label) {
@@ -1171,8 +1269,14 @@
     }
 
     async function syncGateDeviceHeartbeat() {
-      if (!supabaseClient || !navigator.onLine) return;
       const device = getGateDevice();
+      if (!supabaseClient || !navigator.onLine) {
+        const error = new Error("النظام غير متاح حالياً");
+        qrRuntime.gateDeviceApproved = false;
+        qrRuntime.heartbeatLastError = error.message;
+        await reportHeartbeatIssue(error, { source: "gateHeartbeatUnavailable" });
+        return { approved: false, error };
+      }
       const payload = {
         p_device_code: device.device_code,
         p_gate_name: device.gate_name,
@@ -1186,48 +1290,54 @@
       };
       try {
         const heartbeatResult = await rpcWithTimeout(
-          (signal) => supabaseClient.rpc("upsert_gate_device_heartbeat", payload).abortSignal?.(signal) || supabaseClient.rpc("upsert_gate_device_heartbeat", payload),
+          () => supabaseClient.rpc("upsert_gate_device_heartbeat", payload),
           QR_REQUEST_TIMEOUT_MS,
           "انتهت مهلة تحديث نبض جهاز الحارس"
         );
         if (heartbeatResult?.error) throw heartbeatResult.error;
-      } catch (err) {
-        if (/p_app_version|last_qr|last_scan|schema cache|function/i.test(err.message || "")) {
-          try {
-            const fallbackResult = await withTimeout(
-              supabaseClient.rpc("upsert_gate_device_heartbeat", {
-                p_device_code: device.device_code,
-                p_gate_name: device.gate_name,
-                p_cache_version: CACHE_VERSION,
-                p_user_agent: navigator.userAgent,
-                p_pending_count: 0,
-                p_device_token: payload.p_device_token
-              }),
-              QR_REQUEST_TIMEOUT_MS,
-              "انتهت مهلة تحديث نبض جهاز الحارس"
-            );
-            if (fallbackResult?.error) throw fallbackResult.error;
-            return;
-          } catch (fallbackErr) {
-            recordGateError("gateHeartbeatFallback", fallbackErr);
-          }
+        const result = normalizeRpcData(heartbeatResult?.data);
+        if (!result || result.ok !== true || result.pending_approval === true) {
+          const pendingApproval = result?.pending_approval === true;
+          const error = new Error(
+            result?.message || (pendingApproval ? "جهاز الحارس بانتظار اعتماد الإدارة" : "تعذر اعتماد جهاز الحارس")
+          );
+          error.code = pendingApproval ? "GATE_NOT_APPROVED" : "GATE_HEARTBEAT_REJECTED";
+          error.heartbeatReported = true;
+          qrRuntime.gateDeviceApproved = false;
+          qrRuntime.heartbeatLastError = error.message;
+          await reportHeartbeatIssue(error, {
+            source: "gateHeartbeatRejected",
+            action: pendingApproval ? "GATE_DEVICE_NOT_APPROVED" : "GATE_HEARTBEAT_REJECTED",
+            warning: error.message,
+            pendingApproval
+          });
+          return { approved: false, pendingApproval, error, result };
         }
-        recordGateError("gateHeartbeat", err);
-        console.warn("Gate device heartbeat failed:", err);
+
+        qrRuntime.gateDeviceApproved = true;
+        qrRuntime.heartbeatVerifiedAt = Date.now();
+        qrRuntime.heartbeatLastError = "";
+        await flushGateAuditEvents();
+        return { approved: true, result };
+      } catch (err) {
+        err.heartbeatReported = true;
+        qrRuntime.gateDeviceApproved = false;
+        qrRuntime.heartbeatLastError = err.message || String(err);
+        await reportHeartbeatIssue(err);
+        return { approved: false, error: err };
       }
     }
 
-    function updateNetworkState() {
+    async function updateNetworkState() {
       if (!navigator.onLine) {
         setConnection("Offline Gate Mode", "error");
-        setQrDiagnostics("الشبكة منقطعة", "تم الاحتفاظ بآخر حالة معروفة");
-        showSetupWarning("الاتصال منقطع. ستبقى شاشة الحارس و QR المحلي يعملان من الكاش، وستعود المزامنة عند رجوع الإنترنت.", "warning");
+        setQrDiagnostics("الشبكة منقطعة", "النظام غير متاح حالياً");
+        showSetupWarning("النظام غير متاح حالياً", "error");
         return;
       }
       if (supabaseClient) setConnection("Supabase جاهز", "ready");
       setQrDiagnostics("الشبكة متصلة");
-      syncGateDeviceHeartbeat();
-      refreshQrNow();
+      await refreshQrNow();
     }
 
     function initSupabase() {
@@ -1235,16 +1345,12 @@
 
       if (!isConfigReady()) {
         setConnection("Supabase غير مفعّل", "error");
-        showSetupWarning(
-          "لم يتم إعداد Supabase بعد. الصفحة لن تنهار، لكن QR سيعمل كرابط عام فقط. بعد تجهيز Supabase، بدلي SUPABASE_URL و SUPABASE_ANON_KEY و LIVE_SITE_URL.",
-          "error"
-        );
+        showSetupWarning("النظام غير متاح حالياً", "error");
         return;
       }
 
       supabaseClient = supabase.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY);
       setConnection("Supabase جاهز", "ready");
-      syncGateDeviceHeartbeat();
     }
 
     function hideSetupWarning() {
@@ -1288,6 +1394,10 @@
       const canvas = $("qrCanvas");
 
       try {
+        const secureToken = options.token || extractTokenFromUrl(url);
+        if (options.secure !== true || !secureToken) {
+          throw new Error("رفض رسم QR غير صادر من جلسة Supabase معتمدة");
+        }
         if (!canvas) throw new Error("QR canvas is missing");
         if (!window.QRCode || typeof window.QRCode.toCanvas !== "function") {
           throw new Error("Local QR library did not load");
@@ -1324,7 +1434,7 @@
         currentQrUrl = url;
         lastValidQr = {
           url,
-          token: options.token || extractTokenFromUrl(url),
+          token: secureToken,
           createdAt: Date.now(),
           expiresAt: options.expiresAt || null,
           secure: options.secure === true
@@ -1371,10 +1481,16 @@
         }
 
         if (!navigator.onLine) {
-          throw new Error("الشبكة غير متصلة. تم الاحتفاظ بآخر QR ظاهر.");
+          throw new Error("النظام غير متاح حالياً");
         }
 
-        hideSetupWarning();
+        const gateState = await syncGateDeviceHeartbeat();
+        if (!gateState.approved) {
+          const gateError = gateState.error || new Error("تعذر اعتماد جهاز الحارس");
+          gateError.code = gateState.pendingApproval ? "GATE_NOT_APPROVED" : (gateError.code || "GATE_HEARTBEAT_REJECTED");
+          gateError.heartbeatReported = true;
+          throw gateError;
+        }
 
         const rpcStartedAt = performance.now();
         const gateDevice = getGateDevice();
@@ -1383,12 +1499,7 @@
           p_device_token: getOfflineDeviceToken()
         };
         const { data, error } = await rpcWithTimeout(
-          (signal) =>
-            supabaseClient
-              .rpc("create_qr_session", qrSessionPayload)
-              .abortSignal?.(signal)
-              ||
-              supabaseClient.rpc("create_qr_session", qrSessionPayload),
+          () => supabaseClient.rpc("create_qr_session", qrSessionPayload),
           QR_REQUEST_TIMEOUT_MS,
           "انتهت مهلة إنشاء QR من Supabase"
         );
@@ -1401,7 +1512,9 @@
         }
 
         if (!result || result.ok !== true || !result.token) {
-          throw new Error("استجابة QR غير متوقعة من Supabase");
+          const responseError = new Error(result?.message || "استجابة QR غير متوقعة من Supabase");
+          if (result?.pending_approval === true) responseError.code = "GATE_NOT_APPROVED";
+          throw responseError;
         }
 
         const verifyUrl = new URL(APP_CONFIG.VERIFY_PATH || "/verify.html", liveBaseUrl());
@@ -1422,20 +1535,27 @@
         qrRuntime.lastError = "";
         setConnection("QR نشط", "ready");
         setQrDiagnostics("QR آمن ومحدث");
+        hideSetupWarning();
       } catch (err) {
         const message = err.message || String(err);
         console.error("QR refresh failed:", err);
-        recordGateError("refreshQrNow", err);
+        if (!err.heartbeatReported) {
+          recordGateError("refreshQrNow", err);
+          queueGateAuditEvent("GATE_QR_REFRESH_ERROR", "refreshQrNow", err, {
+            device_code: getGateDevice().device_code
+          });
+          await flushGateAuditEvents();
+        }
         qrRuntime.consecutiveFailures += 1;
         qrRuntime.lastError = message;
         qrTimer = nextQrRetrySeconds();
         $("qrCountdown").textContent = qrTimer;
-        setConnection("QR يعيد المحاولة", "error");
-        setQrDiagnostics("إعادة محاولة تلقائية", message);
-        showSetupWarning(
-          "تعذر تحديث QR الآن: " + message + " سيتم إعادة المحاولة تلقائيًا بدون إيقاف الشاشة.",
-          "error"
-        );
+        const warning = err.code === "GATE_NOT_APPROVED"
+          ? message
+          : "النظام غير متاح حالياً";
+        setConnection(err.code === "GATE_NOT_APPROVED" ? "الجهاز غير معتمد" : "النظام غير متاح", "error");
+        setQrDiagnostics("توقف إنشاء QR", message);
+        showSetupWarning(warning, "error");
       } finally {
         qrRuntime.refreshing = false;
       }
