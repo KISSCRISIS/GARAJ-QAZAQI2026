@@ -1536,6 +1536,8 @@
 
     let supabaseClient = null;
     let adminProfile = null;
+    const VIOLATION_PHOTOS_BUCKET = "violation-photos";
+    const VIOLATION_SIGNED_URL_TTL = 900;
 
     let registrationsData = [];
     let filteredRegistrationsData = [];
@@ -1576,6 +1578,53 @@
       } catch {
         return value;
       }
+    }
+
+    function getViolationObjectPath(photoUrl) {
+      const raw = String(photoUrl || "").trim();
+      if (!raw) return "";
+
+      try {
+        const parsed = new URL(raw, window.location.origin);
+        const pathname = parsed.pathname;
+        const objectMarker = "/storage/v1/object/";
+        const markerIndex = pathname.indexOf(objectMarker);
+        if (markerIndex >= 0) {
+          const parts = pathname.slice(markerIndex + objectMarker.length).split("/");
+          const accessMode = parts.shift();
+          const bucket = parts.shift();
+          if (["public", "sign", "authenticated"].includes(accessMode) && bucket === VIOLATION_PHOTOS_BUCKET) {
+            return decodeURIComponent(parts.join("/")).replace(/^\/+/, "");
+          }
+        }
+      } catch (error) {
+        console.warn("تعذر تحليل مسار صورة المخالفة:", error);
+      }
+
+      const bucketPrefix = `${VIOLATION_PHOTOS_BUCKET}/`;
+      return raw.startsWith(bucketPrefix) ? raw.slice(bucketPrefix.length) : raw.replace(/^\/+/, "");
+    }
+
+    async function createViolationSignedUrl(photoUrl) {
+      const objectPath = getViolationObjectPath(photoUrl);
+      if (!objectPath || !supabaseClient) return "";
+
+      const { data, error } = await supabaseClient.storage
+        .from(VIOLATION_PHOTOS_BUCKET)
+        .createSignedUrl(objectPath, VIOLATION_SIGNED_URL_TTL);
+
+      if (error) {
+        console.warn("تعذر إنشاء رابط مؤقت لصورة المخالفة:", error);
+        return "";
+      }
+      return data?.signedUrl || "";
+    }
+
+    async function attachViolationSignedUrls(rows) {
+      return Promise.all((rows || []).map(async (row) => ({
+        ...row,
+        photo_url: await createViolationSignedUrl(row.photo_url)
+      })));
     }
 
     function statusBadge(status) {
@@ -2053,6 +2102,13 @@
     }
 
     async function loadViolations() {
+      if (!hasPermission("can_review_violations")) {
+        violationsData = [];
+        renderViolations();
+        renderOverview();
+        return;
+      }
+
       let data;
       try {
         data = await fetchAllRows("violation_reports");
@@ -2061,7 +2117,7 @@
         return;
       }
 
-      violationsData = data || [];
+      violationsData = await attachViolationSignedUrls(data || []);
       renderViolations();
       renderOverview();
     }
@@ -2291,9 +2347,9 @@
       body.innerHTML = violationsData.map((row) => `
         <tr>
           <td>
-            <a href="${escapeHtml(row.photo_url)}" target="_blank" rel="noopener">
-              <img class="photo-thumb" src="${escapeHtml(row.photo_url)}" alt="صورة بلاغ" />
-            </a>
+            ${row.photo_url
+              ? `<a href="${escapeHtml(row.photo_url)}" target="_blank" rel="noopener"><img class="photo-thumb" src="${escapeHtml(row.photo_url)}" alt="صورة بلاغ" /></a>`
+              : `<span class="small-muted">الصورة غير متاحة</span>`}
           </td>
           <td>${escapeHtml(row.employee_id || "-")}</td>
           <td style="white-space:normal; min-width:220px">${escapeHtml(row.note || "-")}</td>

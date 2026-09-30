@@ -208,8 +208,8 @@ on public.admin_audit_logs(created_at);
 -- =========================================================
 
 insert into storage.buckets (id, name, public)
-values ('violation-photos', 'violation-photos', true)
-on conflict (id) do nothing;
+values ('violation-photos', 'violation-photos', false)
+on conflict (id) do update set public = excluded.public;
 
 -- =========================================================
 -- HELPER FUNCTIONS
@@ -356,11 +356,7 @@ with check (
 );
 
 drop policy if exists "Anyone can read violation photos" on storage.objects;
-create policy "Anyone can read violation photos"
-on storage.objects
-for select
-to anon, authenticated
-using (bucket_id = 'violation-photos');
+drop policy if exists "Admins can read violation photos" on storage.objects;
 
 -- =========================================================
 -- RPC: get_my_admin_profile
@@ -1469,6 +1465,16 @@ exception when others then
   return false;
 end;
 $$;
+
+drop policy if exists "Admins can read violation photos" on storage.objects;
+create policy "Admins can read violation photos"
+on storage.objects
+for select
+to authenticated
+using (
+  bucket_id = 'violation-photos'
+  and (public.is_super_admin() or public.has_admin_permission('can_review_violations'))
+);
 
 -- تحديث الاختصاصات النهائية والحد = 7
 update public.specialty_daily_limits
