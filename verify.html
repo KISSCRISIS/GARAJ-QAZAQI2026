@@ -242,6 +242,7 @@
   const APP_VERSION = "2026.09.28-24x7";
   let qrScanStream = null;
   let qrScanTimer = null;
+  let syncingLock = false;
 
   function normalizeRpcData(data, fnName) {
     let value = Array.isArray(data) ? data[0] : data;
@@ -603,10 +604,12 @@
   }
 
   async function syncOfflineAccessLogs(){
-    if(!supabaseClient || !navigator.onLine) return;
-    const logs=await readOfflineAccessLogs();
-    if(!logs.length) return;
+    if(syncingLock || !supabaseClient || !navigator.onLine) return;
+    syncingLock=true;
+    let logs=[];
     try{
+      logs=await readOfflineAccessLogs();
+      if(!logs.length) return;
       const {data,error}=await supabaseClient.rpc("sync_offline_access_logs",{
         p_device_code:getGateDevice().device_code,
         p_logs:logs,
@@ -623,6 +626,8 @@
       await incrementOfflineRetryCounts(logs).catch(()=>{});
       await updateOfflinePendingBadge();
       console.warn("Offline access log sync failed:",err);
+    }finally{
+      syncingLock=false;
     }
   }
 
@@ -653,7 +658,7 @@
   }
 
   async function claimQrSessionIfPresent(){
-    if(!qrToken){
+    if(!activeQrToken){
       qrClaimReady=false;
       showManualSections(true);
       return;
@@ -662,7 +667,7 @@
 
     try{
       setResult("WAITING","جارِ تفعيل QR والتحقق من صلاحيته...");
-      const {data,error}=await supabaseClient.rpc("claim_qr_session",{p_token:qrToken});
+      const {data,error}=await supabaseClient.rpc("claim_qr_session",{p_token:activeQrToken});
       const result=normalizeRpcData(data,"claim_qr_session");
 
       if(error || !result || result.ok!==true || !result.claim_token){
