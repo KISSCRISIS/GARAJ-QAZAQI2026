@@ -275,6 +275,8 @@ set search_path = public
 as $$
 declare
   reg record;
+  lim record;
+  used_count integer := 0;
   qr_required boolean := false;
   qr_ok boolean := true;
   clean_emp text := trim(coalesce(p_employee_id, ''));
@@ -286,20 +288,6 @@ declare
 begin
   if clean_emp = '' or clean_mobile = '' then
     return jsonb_build_object('ok', false, 'result', 'DENIED', 'message', 'أدخل الرقم الوظيفي/الوطني ورقم الهاتف');
-  end if;
-
-  if p_qr_token is not null and length(trim(p_qr_token)) > 0 then
-    qr_required := true;
-    qr_ok := public.validate_and_use_qr_token(p_qr_token);
-  end if;
-
-  if qr_required and qr_ok = false then
-    perform public.set_guard_status('DENIED', null, clean_emp, 'QR غير صالح أو منتهي');
-    return jsonb_build_object(
-      'ok', true,
-      'result', 'DENIED',
-      'message', 'QR غير صالح أو منتهي، يرجى مسح QR جديد'
-    );
   end if;
 
   select *
@@ -378,6 +366,57 @@ begin
     );
   end if;
 
+  -- Reject a linked device that was disabled or revoked before consuming the
+  -- QR. A row without a linked token remains eligible for the existing manual
+  -- bootstrap flow. Exact token ownership is validated by auto_employee_check.
+  if nullif(reg.trusted_device_token_hash, '') is not null
+     and (
+       coalesce(reg.trusted_device_enabled, false) = false
+       or reg.trusted_device_revoked_at is not null
+     ) then
+    insert into public.gate_access_logs (
+      employee_registration_id,
+      employee_id,
+      mobile_number,
+      full_name,
+      specialty,
+      result,
+      reason
+    )
+    values (
+      reg.id,
+      reg.employee_id,
+      reg.mobile_number,
+      reg.full_name,
+      reg.specialty,
+      'DENIED',
+      'TRUSTED_DEVICE_NOT_ACTIVE'
+    );
+
+    perform public.set_guard_status('DENIED', reg.full_name, reg.employee_id, 'الجهاز الموثوق غير مفعّل');
+
+    return jsonb_build_object(
+      'ok', true,
+      'result', 'DENIED',
+      'message', 'الجهاز الموثوق غير مفعّل، يرجى مراجعة الإدارة',
+      'employee', public.employee_result_details(reg.id)
+    );
+  end if;
+
+  if p_qr_token is not null and length(trim(p_qr_token)) > 0 then
+    qr_required := true;
+    qr_ok := public.validate_and_use_qr_token(p_qr_token);
+  end if;
+
+  if qr_required and qr_ok = false then
+    perform public.set_guard_status('DENIED', null, clean_emp, 'QR غير صالح أو منتهي');
+    return jsonb_build_object(
+      'ok', true,
+      'result', 'DENIED',
+      'message', 'QR غير صالح أو منتهي، يرجى مسح QR جديد'
+    );
+  end if;
+
   is_permanent := public.is_permanently_allowed_specialty(reg.specialty);
 
   if is_permanent then
@@ -393,6 +432,35 @@ begin
     access_result := 'LIMITED';
     access_reason := 'TEMPORARY_DOCTOR_NON_EMERGENCY';
     access_message := 'مسموح جزئيًا — طبيب من اختصاص آخر';
+  end if;
+
+  if not is_permanent then
+    select *
+    into lim
+    from public.specialty_daily_limits
+    where specialty_name = reg.specialty
+      and is_active = true
+    limit 1;
+
+    if lim.id is not null then
+      select count(*)
+      into used_count
+      from public.gate_access_logs
+      where specialty = reg.specialty
+        and result = 'LIMITED'
+        and created_at >= date_trunc('day', now())
+        and created_at < date_trunc('day', now()) + interval '1 day';
+
+      if used_count >= lim.daily_limit then
+        access_result := 'DENIED';
+        access_reason := 'SPECIALTY_DAILY_LIMIT_REACHED';
+        access_message := 'غير مسموح — تم الوصول للحد اليومي لهذا الاختصاص';
+      else
+        access_result := 'LIMITED';
+        access_reason := 'SPECIALTY_LIMITED_ACCESS';
+        access_message := 'مسموح بشكل مؤقت';
+      end if;
+    end if;
   end if;
 
   insert into public.gate_access_logs (

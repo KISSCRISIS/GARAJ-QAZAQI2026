@@ -286,15 +286,6 @@ begin
       'message', 'أدخل الرقم الوظيفي/الوطني ورقم الهاتف');
   end if;
 
-  if nullif(trim(coalesce(p_qr_token, '')), '') is not null then
-    qr_ok := public.validate_and_use_qr_token(p_qr_token);
-    if not qr_ok then
-      perform public.set_guard_status('DENIED', null, clean_emp, 'QR غير صالح أو منتهي');
-      return jsonb_build_object('ok', true, 'result', 'DENIED',
-        'message', 'QR غير صالح أو منتهي، يرجى مسح QR جديد');
-    end if;
-  end if;
-
   select * into reg
   from public.employee_registrations
   where employee_id = clean_emp and mobile_number = clean_mobile
@@ -319,6 +310,37 @@ begin
     perform public.set_guard_status('DENIED', reg.full_name, reg.employee_id, access_message);
     return jsonb_build_object('ok', true, 'result', 'DENIED',
       'message', access_message, 'employee', public.employee_result_details(reg.id));
+  end if;
+
+  -- Reject a linked device that was disabled or revoked before consuming the
+  -- QR. A row without a linked token remains eligible for the existing manual
+  -- bootstrap flow. Exact token ownership is validated by auto_employee_check.
+  if nullif(reg.trusted_device_token_hash, '') is not null
+     and (
+       coalesce(reg.trusted_device_enabled, false) = false
+       or reg.trusted_device_revoked_at is not null
+     ) then
+    insert into public.gate_access_logs (
+      employee_registration_id, employee_id, mobile_number, full_name,
+      specialty, result, reason
+    ) values (
+      reg.id, reg.employee_id, reg.mobile_number, reg.full_name,
+      reg.specialty, 'DENIED', 'TRUSTED_DEVICE_NOT_ACTIVE'
+    );
+    perform public.set_guard_status('DENIED', reg.full_name, reg.employee_id,
+      'الجهاز الموثوق غير مفعّل');
+    return jsonb_build_object('ok', true, 'result', 'DENIED',
+      'message', 'الجهاز الموثوق غير مفعّل، يرجى مراجعة الإدارة',
+      'employee', public.employee_result_details(reg.id));
+  end if;
+
+  if nullif(trim(coalesce(p_qr_token, '')), '') is not null then
+    qr_ok := public.validate_and_use_qr_token(p_qr_token);
+    if not qr_ok then
+      perform public.set_guard_status('DENIED', null, clean_emp, 'QR غير صالح أو منتهي');
+      return jsonb_build_object('ok', true, 'result', 'DENIED',
+        'message', 'QR غير صالح أو منتهي، يرجى مسح QR جديد');
+    end if;
   end if;
 
   if public.is_permanently_allowed_specialty(reg.specialty) then
