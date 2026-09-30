@@ -653,7 +653,7 @@ Migration dependencies:
 
 - Run `schema_patch_pgcrypto_schema_fix.sql` before patches that depend on the trusted-device and offline-device hashing functions.
 - Include `schema_patch_trusted_device_registration_flow.sql` because it provides the employee trusted-device registration, approval, and pending-to-trusted promotion flow.
-- Run `schema_patch_gate_qr_device_auth.sql` last because it overrides `create_qr_session()` and replaces the unsecured QR-generation flow with trusted guard-device authentication.
+- Run `schema_patch_gate_qr_device_auth.sql` last because it overrides the QR runtime with `create_qr_session(device_code, device_token)` and replaces the unsecured QR-generation flow with trusted guard-device authentication.
 
 بعد ذلك أنشئ أول حساب SUPER_ADMIN في Supabase Auth وأضف سجله الإداري
 بملف خاص. لا ترفع الملف الذي يحتوي بيانات الحساب إلى GitHub.
