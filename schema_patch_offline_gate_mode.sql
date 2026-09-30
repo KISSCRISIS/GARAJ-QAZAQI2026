@@ -235,9 +235,8 @@ begin
       return jsonb_build_object('ok', false, 'message', 'too many new devices, try later');
     end if;
 
-    -- Bootstrap: the very first gate device activates itself so a fresh
-    -- install works; every later auto-registered device waits for admin.
-    bootstrap_active := (total_devices = 0);
+    -- New gate devices remain inactive until an administrator approves them.
+    bootstrap_active := false;
   end if;
 
   insert into public.gate_devices (
