@@ -233,6 +233,7 @@
   let lastManualCheck = null;
   const TRUSTED_DEVICE_STORAGE_KEY = "erp_trusted_device_token_v1";
   const TRUSTED_DEVICE_ID_STORAGE_KEY = "erp_trusted_device_id_v1";
+  const PENDING_REGISTRATION_STORAGE_KEY = "erp_pending_registration_v1";
   const GATE_DEVICE_STORAGE_KEY = "erp_gate_device_v1";
   const OFFLINE_DEVICE_TOKEN_STORAGE_KEY = "erp_offline_device_token_v1";
   const OFFLINE_DB_NAME = "erp_offline_gate_mode";
@@ -841,10 +842,51 @@
 
   function getTrustedDeviceToken(){ return localStorage.getItem(TRUSTED_DEVICE_STORAGE_KEY)||""; }
   function saveTrustedDeviceToken(token){ localStorage.setItem(TRUSTED_DEVICE_STORAGE_KEY,token); }
-  function clearTrustedDeviceToken(){ localStorage.removeItem(TRUSTED_DEVICE_STORAGE_KEY); }
+  function clearTrustedDeviceToken(){
+    localStorage.removeItem(TRUSTED_DEVICE_STORAGE_KEY);
+    localStorage.removeItem(PENDING_REGISTRATION_STORAGE_KEY);
+  }
   function generateTrustedDeviceToken(){
     const bytes=new Uint8Array(48); crypto.getRandomValues(bytes);
     return Array.from(bytes,b=>b.toString(16).padStart(2,"0")).join("");
+  }
+
+  function readPendingRegistrationContext(){
+    try{
+      const value=JSON.parse(localStorage.getItem(PENDING_REGISTRATION_STORAGE_KEY)||"null");
+      const employeeId=String(value?.employee_id||"").trim();
+      const deviceId=String(value?.device_id||"").trim();
+      const token=String(value?.token||"").trim();
+      if(!employeeId || !deviceId || token.length<40) return null;
+      return {employeeId,deviceId,token};
+    }catch{return null;}
+  }
+
+  function savePendingRegistrationContext(employeeId,deviceId,token){
+    localStorage.setItem(PENDING_REGISTRATION_STORAGE_KEY,JSON.stringify({
+      employee_id:String(employeeId||"").trim(),
+      device_id:String(deviceId||"").trim(),
+      token:String(token||"").trim()
+    }));
+  }
+
+  function getOrCreatePendingRegistrationToken(employeeId,deviceId){
+    const cleanEmployeeId=String(employeeId||"").trim();
+    const cleanDeviceId=String(deviceId||"").trim();
+    const existing=readPendingRegistrationContext();
+    if(existing && existing.employeeId===cleanEmployeeId && existing.deviceId===cleanDeviceId){
+      return existing.token;
+    }
+    if(!existing){
+      const legacyStoredToken=getTrustedDeviceToken();
+      if(legacyStoredToken.length>=40){
+        savePendingRegistrationContext(cleanEmployeeId,cleanDeviceId,legacyStoredToken);
+        return legacyStoredToken;
+      }
+    }
+    const token=generateTrustedDeviceToken();
+    savePendingRegistrationContext(cleanEmployeeId,cleanDeviceId,token);
+    return token;
   }
 
   function getTrustedDeviceId(){
@@ -1044,12 +1086,14 @@
 
     try{
       disableButton("registerButton",true,"جارِ رفع الصورة...","إرسال طلب التسجيل");
-      const photoUrl=await uploadEmployeePhoto($("employeeId").value.trim());
-      const pendingDeviceToken=generateTrustedDeviceToken();
+      const employeeId=$("employeeId").value.trim();
+      const deviceId=getTrustedDeviceId();
+      const photoUrl=await uploadEmployeePhoto(employeeId);
+      const pendingDeviceToken=getOrCreatePendingRegistrationToken(employeeId,deviceId);
       disableButton("registerButton",true,"جارِ إرسال الطلب...","إرسال طلب التسجيل");
       const payload={
         p_full_name:$("fullName").value.trim(),
-        p_employee_id:$("employeeId").value.trim(),
+        p_employee_id:employeeId,
         p_mobile_number:$("mobileNumber").value.trim(),
         p_specialty:$("specialty").value.trim(),
         p_qr_token:activeQrToken||null,
@@ -1057,7 +1101,7 @@
         p_department:$("jobType").value.trim(),
         p_photo_url:photoUrl,
         p_device_token:pendingDeviceToken,
-        p_device_id:getTrustedDeviceId(),
+        p_device_id:deviceId,
         p_device_type:getDeviceType(),
         p_device_name:getDeviceName(),
         p_user_agent:navigator.userAgent
