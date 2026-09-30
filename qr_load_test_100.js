@@ -16,6 +16,8 @@ const CONCURRENCY = Number(process.env.CONCURRENCY || 100);
 const RUN_REAL_LOAD_TEST = process.env.RUN_REAL_LOAD_TEST === "1";
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+const GATE_DEVICE_CODE = process.env.GATE_DEVICE_CODE;
+const GATE_DEVICE_TOKEN = process.env.GATE_DEVICE_TOKEN;
 
 function percentile(values, p) {
   if (!values.length) return 0;
@@ -33,7 +35,10 @@ async function createQrSession(index) {
       Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       "Content-Type": "application/json"
     },
-    body: "{}"
+    body: JSON.stringify({
+      p_device_code: GATE_DEVICE_CODE,
+      p_device_token: GATE_DEVICE_TOKEN
+    })
   });
   const durationMs = Math.round(performance.now() - startedAt);
   const text = await response.text();
@@ -63,8 +68,8 @@ async function main() {
     return;
   }
 
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    throw new Error("SUPABASE_URL and SUPABASE_ANON_KEY are required.");
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !GATE_DEVICE_CODE || !GATE_DEVICE_TOKEN) {
+    throw new Error("SUPABASE_URL, SUPABASE_ANON_KEY, GATE_DEVICE_CODE, and GATE_DEVICE_TOKEN are required.");
   }
 
   const startedAt = performance.now();
