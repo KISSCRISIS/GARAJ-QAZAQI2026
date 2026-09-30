@@ -54,27 +54,6 @@ begin
 end;
 $$;
 
-create or replace function public.create_qr_session()
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  new_token uuid;
-begin
-  insert into public.qr_sessions (expires_at)
-  values (now() + interval '30 seconds')
-  returning token into new_token;
-
-  return jsonb_build_object(
-    'ok', true,
-    'token', new_token::text,
-    'expires_in_seconds', 30
-  );
-end;
-$$;
-
 grant execute on function public.cleanup_expired_qr_sessions() to authenticated;
 
 drop policy if exists "Anyone can upload violation photos" on storage.objects;
@@ -170,92 +149,6 @@ begin
   returning id into consumed_id;
 
   return consumed_id is not null;
-end;
-$$;
-
--- A registration is immutable after its first submission. Identity changes use
--- employee_data_change_requests and require an administrator decision.
-create or replace function public.register_employee_request(
-  p_full_name text,
-  p_employee_id text,
-  p_mobile_number text,
-  p_specialty text,
-  p_qr_token text default null,
-  p_job_type text default null,
-  p_department text default null,
-  p_photo_url text default null
-)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  reg public.employee_registrations%rowtype;
-  qr_ok boolean := false;
-  clean_name text := trim(coalesce(p_full_name, ''));
-  clean_emp text := trim(coalesce(p_employee_id, ''));
-  clean_mobile text := trim(coalesce(p_mobile_number, ''));
-  clean_specialty text := trim(coalesce(p_specialty, ''));
-  clean_job_type text := trim(coalesce(p_job_type, ''));
-  clean_department text := trim(coalesce(p_department, p_job_type, ''));
-  clean_photo_url text := trim(coalesce(p_photo_url, ''));
-begin
-  if clean_name = '' or clean_emp = '' or clean_mobile = '' or clean_specialty = ''
-     or clean_job_type = '' or clean_department = '' or clean_photo_url = '' then
-    return jsonb_build_object('ok', false, 'result', 'DENIED',
-      'message', 'جميع البيانات والصورة الشخصية مطلوبة');
-  end if;
-
-  select * into reg
-  from public.employee_registrations
-  where employee_id = clean_emp
-  limit 1;
-
-  if reg.id is not null then
-    return jsonb_build_object(
-      'ok', false,
-      'result', case when reg.status = 'REJECTED' then 'DENIED' else reg.status end,
-      'message', case
-        when reg.status = 'PENDING' then 'الطلب مسجل وقيد مراجعة الإدارة. لا يمكن تعديل بيانات الهوية من نموذج التسجيل.'
-        when reg.status = 'APPROVED' then 'الموظف مسجل ومعتمد. استخدم تسجيل الدخول أو التحقق.'
-        else 'الطلب مرفوض. راجع الإدارة.'
-      end
-    );
-  end if;
-
-  insert into public.employee_registrations (
-    full_name, employee_id, mobile_number, specialty, job_type, department,
-    employee_photo_url, status, first_entry_used, first_entry_at
-  ) values (
-    clean_name, clean_emp, clean_mobile, clean_specialty, clean_job_type,
-    clean_department, clean_photo_url, 'PENDING', false, null
-  ) returning * into reg;
-
-  qr_ok := public.validate_and_use_qr_token(p_qr_token);
-  if qr_ok then
-    update public.employee_registrations
-    set first_entry_used = true, first_entry_at = now()
-    where id = reg.id;
-
-    insert into public.gate_access_logs (
-      employee_registration_id, employee_id, mobile_number, full_name,
-      specialty, result, reason, qr_token
-    ) values (
-      reg.id, reg.employee_id, reg.mobile_number, reg.full_name,
-      reg.specialty, 'PENDING_FIRST_ENTRY', 'FIRST_ENTRY_AFTER_REGISTRATION',
-      p_qr_token::uuid
-    );
-    perform public.set_guard_status('LIMITED', reg.full_name, reg.employee_id,
-      'دخول أول مرة — بانتظار موافقة الإدارة');
-    return jsonb_build_object('ok', true, 'result', 'LIMITED',
-      'message', 'تم إرسال الطلب والسماح بدخول أول مرة فقط',
-      'employee', public.employee_result_details(reg.id));
-  end if;
-
-  return jsonb_build_object('ok', true, 'result', 'PENDING',
-    'message', 'تم إرسال الطلب، الرجاء انتظار موافقة الإدارة',
-    'employee', public.employee_result_details(reg.id));
 end;
 $$;
 
@@ -537,7 +430,6 @@ revoke all on function public.admin_set_trusted_device_impl(uuid,boolean,boolean
 revoke all on function public.admin_can_approve_requests() from public, anon, authenticated;
 grant execute on function public.claim_qr_session(text) to anon, authenticated;
 grant execute on function public.validate_and_use_qr_token(text) to anon, authenticated;
-grant execute on function public.register_employee_request(text,text,text,text,text,text,text,text) to anon, authenticated;
 grant execute on function public.manual_employee_check(text,text,text) to anon, authenticated;
 grant execute on function public.get_guard_employee_result(text) to anon, authenticated;
 grant execute on function public.register_trusted_device(text,text,text) to anon, authenticated;

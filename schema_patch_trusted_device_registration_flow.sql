@@ -232,63 +232,6 @@ $$;
 
 grant execute on function public.admin_update_registration_status(uuid, text) to authenticated;
 
-create or replace function public.trusted_device_profile_login(p_device_token text)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  reg record;
-  clean_token text := trim(coalesce(p_device_token, ''));
-begin
-  if length(clean_token) < 40 then
-    return jsonb_build_object('ok', false, 'clear_device', true, 'message', 'رمز الجهاز غير صالح');
-  end if;
-
-  select * into reg
-  from public.employee_registrations
-  where trusted_device_token_hash = public.hash_trusted_device_token(clean_token)
-     or pending_trusted_device_token_hash = public.hash_trusted_device_token(clean_token)
-  limit 1;
-
-  if reg.id is null then
-    return jsonb_build_object('ok', false, 'clear_device', true, 'message', 'الجهاز جديد أو تم إلغاء اعتماده');
-  end if;
-
-  if reg.status <> 'APPROVED' then
-    return jsonb_build_object('ok', false, 'clear_device', false, 'message', 'طلب الموظف لم يعتمد بعد');
-  end if;
-
-  if coalesce(reg.trusted_device_enabled, false) = false then
-    return jsonb_build_object('ok', false, 'clear_device', false, 'message', 'الجهاز محفوظ لكنه غير مفعّل بعد');
-  end if;
-
-  update public.employee_registrations
-  set trusted_device_last_used_at = now(), trusted_device_last_activity_at = now()
-  where id = reg.id;
-
-  insert into public.admin_audit_logs (admin_auth_user_id, action, target_table, target_id, details)
-  values (null, 'TRUSTED_DEVICE_FAST_LOGIN', 'employee_registrations', reg.id::text,
-    jsonb_build_object('device_id', reg.trusted_device_id, 'employee_id', reg.employee_id));
-
-  return jsonb_build_object(
-    'ok', true,
-    'profile', jsonb_build_object(
-      'employee_id', reg.employee_id,
-      'mobile_number', reg.mobile_number,
-      'full_name', reg.full_name,
-      'job_type', coalesce(reg.job_type, ''),
-      'department', coalesce(reg.department, ''),
-      'specialty', reg.specialty,
-      'status', reg.status
-    )
-  );
-end;
-$$;
-
-grant execute on function public.trusted_device_profile_login(text) to anon, authenticated;
-
 create or replace function public.auto_employee_check(
   p_device_token text,
   p_qr_token text default null

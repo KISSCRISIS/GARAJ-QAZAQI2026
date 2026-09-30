@@ -1,6 +1,8 @@
 -- ALBASHIR Gate: Guard device admin approval controls
 -- Adds explicit admin actions for activating/deactivating guard terminals.
 -- Apply after schema_patch_offline_gate_mode.sql
+-- DEPRECATED: not the production canonical API. Do not apply this patch to Production.
+-- Production canonical: public.admin_approve_gate_device(text, boolean).
 
 create or replace function public.admin_set_guard_device_status(
   p_device_code text,
