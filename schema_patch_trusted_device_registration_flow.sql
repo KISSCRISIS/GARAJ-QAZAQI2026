@@ -62,7 +62,8 @@ begin
   into reg
   from public.employee_registrations
   where employee_id = clean_emp
-  limit 1;
+  limit 1
+  for update;
 
   if reg.id is null then
     insert into public.employee_registrations (
@@ -103,23 +104,26 @@ begin
     )
     returning * into reg;
   else
-    update public.employee_registrations
-    set mobile_number = case when status = 'PENDING' then clean_mobile else mobile_number end,
-        specialty = case when status = 'PENDING' then clean_specialty else specialty end,
-        job_type = case when status = 'PENDING' then nullif(trim(coalesce(p_job_type, '')), '') else job_type end,
-        department = case when status = 'PENDING' then nullif(trim(coalesce(p_department, '')), '') else department end,
-        employee_photo_url = case when status = 'PENDING' then trim(p_photo_url) else employee_photo_url end,
-        pending_trusted_device_token_hash = case
-          when status = 'PENDING' and length(clean_device_token) >= 40 then public.hash_trusted_device_token(clean_device_token)
-          else pending_trusted_device_token_hash
-        end,
-        pending_trusted_device_id = case when status = 'PENDING' and length(clean_device_token) >= 40 then nullif(trim(coalesce(p_device_id, '')), '') else pending_trusted_device_id end,
-        pending_trusted_device_type = case when status = 'PENDING' and length(clean_device_token) >= 40 then nullif(trim(coalesce(p_device_type, '')), '') else pending_trusted_device_type end,
-        pending_trusted_device_name = case when status = 'PENDING' and length(clean_device_token) >= 40 then nullif(trim(coalesce(p_device_name, '')), '') else pending_trusted_device_name end,
-        pending_trusted_device_user_agent = case when status = 'PENDING' and length(clean_device_token) >= 40 then nullif(trim(coalesce(p_user_agent, '')), '') else pending_trusted_device_user_agent end,
-        pending_trusted_device_created_at = case when status = 'PENDING' and length(clean_device_token) >= 40 then now() else pending_trusted_device_created_at end
-    where id = reg.id
-    returning * into reg;
+    if reg.status = 'PENDING' then
+      if length(clean_device_token) < 40
+         or reg.pending_trusted_device_token_hash is null
+         or reg.pending_trusted_device_token_hash <> public.hash_trusted_device_token(clean_device_token) then
+        return jsonb_build_object(
+          'ok', false,
+          'result', 'DENIED',
+          'message', 'تعذر التحقق من ملكية الطلب المعلق. استخدم الجهاز الذي أرسل الطلب أو راجع الإدارة'
+        );
+      end if;
+
+      update public.employee_registrations
+      set mobile_number = clean_mobile,
+          specialty = clean_specialty,
+          job_type = nullif(trim(coalesce(p_job_type, '')), ''),
+          department = nullif(trim(coalesce(p_department, '')), ''),
+          employee_photo_url = trim(p_photo_url)
+      where id = reg.id
+      returning * into reg;
+    end if;
   end if;
 
   if reg.status = 'REJECTED' then
