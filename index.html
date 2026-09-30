@@ -915,7 +915,7 @@
       token: "",
       createdAt: null,
       expiresAt: null,
-      secure: false
+      secure: null
     };
     const APP_VERSION = "2026.09.28-24x7";
     const QR_REFRESH_SECONDS = 30;
@@ -1352,10 +1352,6 @@
       }
     }
 
-    async function drawFallbackQr() {
-      const url = new URL(APP_CONFIG.VERIFY_PATH || "/verify.html", liveBaseUrl()).toString();
-      await drawQr(url, { secure: false });
-    }
 
     async function refreshQrNow() {
       if (qrRuntime.refreshing) {
@@ -1371,14 +1367,7 @@
 
       try {
         if (!supabaseClient) {
-          if (!lastValidQr.url) {
-            await drawFallbackQr();
-          }
-          qrRuntime.lastSuccessAt = Date.now();
-          qrRuntime.consecutiveFailures = 0;
-          qrRuntime.lastError = "";
-          setQrDiagnostics(lastValidQr.secure ? "آخر QR صالح محفوظ" : "QR إعداد محلي بدون Supabase");
-          return;
+          throw new Error("لم يتم إعداد Supabase. لا يمكن إنشاء QR آمن.");
         }
 
         if (!navigator.onLine) {
