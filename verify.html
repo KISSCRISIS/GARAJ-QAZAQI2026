@@ -236,8 +236,10 @@
   const GATE_DEVICE_STORAGE_KEY = "erp_gate_device_v1";
   const OFFLINE_DEVICE_TOKEN_STORAGE_KEY = "erp_offline_device_token_v1";
   const OFFLINE_DB_NAME = "erp_offline_gate_mode";
-  const OFFLINE_DB_VERSION = 1;
+  const OFFLINE_DB_VERSION = 2;
   const OFFLINE_ACCESS_STORE = "offline_access_queue";
+  const OFFLINE_CRYPTO_STORE = "offline_crypto_meta";
+  const OFFLINE_CRYPTO_KEY_ID = "offline-sensitive-fields-v1";
   const CACHE_VERSION = "emergency-room-parking-offline-v14";
   const APP_VERSION = "2026.09.28-24x7";
   let qrScanStream = null;
@@ -471,10 +473,120 @@
           store.createIndex("offline_created_at","offline_created_at");
           store.createIndex("gate_device_code","gate_device_code");
         }
+        if(!db.objectStoreNames.contains(OFFLINE_CRYPTO_STORE)){
+          db.createObjectStore(OFFLINE_CRYPTO_STORE,{keyPath:"key_id"});
+        }
       };
-      request.onsuccess=()=>resolve(request.result);
+      request.onsuccess=async()=>{
+        const db=request.result;
+        try{
+          const key=await getOrCreateOfflineCryptoKey(db);
+          await migrateOfflineAccessQueue(db,key);
+          resolve(db);
+        }catch(error){
+          db.close();
+          reject(error);
+        }
+      };
       request.onerror=()=>reject(request.error);
     });
+  }
+
+  function idbRequest(request){
+    return new Promise((resolve,reject)=>{
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>reject(request.error||new Error("فشل طلب IndexedDB."));
+    });
+  }
+
+  function idbTransactionComplete(transaction){
+    return new Promise((resolve,reject)=>{
+      transaction.oncomplete=()=>resolve();
+      transaction.onerror=()=>reject(transaction.error||new Error("فشلت معاملة IndexedDB."));
+      transaction.onabort=()=>reject(transaction.error||new Error("أُلغيت معاملة IndexedDB."));
+    });
+  }
+
+  async function getOrCreateOfflineCryptoKey(db){
+    const readTx=db.transaction(OFFLINE_CRYPTO_STORE,"readonly");
+    const existing=await idbRequest(readTx.objectStore(OFFLINE_CRYPTO_STORE).get(OFFLINE_CRYPTO_KEY_ID));
+    if(existing?.key) return existing.key;
+
+    if(!window.crypto?.subtle) throw new Error("Web Crypto غير متاح لتأمين وضع Offline.");
+    const candidate=await crypto.subtle.generateKey(
+      {name:"AES-GCM",length:256},
+      false,
+      ["encrypt","decrypt"]
+    );
+    try{
+      const writeTx=db.transaction(OFFLINE_CRYPTO_STORE,"readwrite");
+      writeTx.objectStore(OFFLINE_CRYPTO_STORE).add({
+        key_id:OFFLINE_CRYPTO_KEY_ID,
+        key:candidate,
+        created_at:new Date().toISOString()
+      });
+      await idbTransactionComplete(writeTx);
+      return candidate;
+    }catch(error){
+      const retryTx=db.transaction(OFFLINE_CRYPTO_STORE,"readonly");
+      const winner=await idbRequest(retryTx.objectStore(OFFLINE_CRYPTO_STORE).get(OFFLINE_CRYPTO_KEY_ID));
+      if(winner?.key) return winner.key;
+      throw error;
+    }
+  }
+
+  function asUint8Array(value){
+    if(value instanceof Uint8Array) return value;
+    if(value instanceof ArrayBuffer) return new Uint8Array(value);
+    return new Uint8Array(value||[]);
+  }
+
+  async function encryptOfflineSensitiveFields(key,fields){
+    const cleanFields=Object.fromEntries(Object.entries(fields||{}).filter(([,value])=>value!==null&&value!==undefined&&value!==""));
+    if(!Object.keys(cleanFields).length) return null;
+    const iv=crypto.getRandomValues(new Uint8Array(12));
+    const plaintext=new TextEncoder().encode(JSON.stringify(cleanFields));
+    const ciphertext=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,plaintext);
+    return {version:1,iv,ciphertext};
+  }
+
+  async function decryptOfflineSensitiveFields(key,envelope){
+    if(!envelope?.iv||!envelope?.ciphertext) return {};
+    const plaintext=await crypto.subtle.decrypt(
+      {name:"AES-GCM",iv:asUint8Array(envelope.iv)},
+      key,
+      asUint8Array(envelope.ciphertext)
+    );
+    const value=JSON.parse(new TextDecoder().decode(plaintext));
+    return value&&typeof value==="object"&&!Array.isArray(value)?value:{};
+  }
+
+  async function migrateOfflineAccessQueue(db,key){
+    const readTx=db.transaction(OFFLINE_ACCESS_STORE,"readonly");
+    const logs=await idbRequest(readTx.objectStore(OFFLINE_ACCESS_STORE).getAll());
+    const updates=[];
+    for(const log of logs||[]){
+      const hasLegacyFields=["employee_id","mobile_number","qr_token","payload"].some((field)=>Object.prototype.hasOwnProperty.call(log,field));
+      if(!hasLegacyFields&&Object.prototype.hasOwnProperty.call(log,"encrypted_sensitive")) continue;
+
+      const legacyPayload=log.payload&&typeof log.payload==="object"&&!Array.isArray(log.payload)?log.payload:{};
+      const encryptedSensitive=log.encrypted_sensitive||await encryptOfflineSensitiveFields(key,{
+        employee_id:log.employee_id??legacyPayload.p_employee_id,
+        qr_token:log.qr_token??legacyPayload.p_qr_token
+      });
+      const migrated={...log,encrypted_sensitive:encryptedSensitive};
+      delete migrated.employee_id;
+      delete migrated.mobile_number;
+      delete migrated.qr_token;
+      delete migrated.payload;
+      delete migrated.gate_device_code;
+      updates.push(migrated);
+    }
+    if(!updates.length) return;
+    const writeTx=db.transaction(OFFLINE_ACCESS_STORE,"readwrite");
+    const store=writeTx.objectStore(OFFLINE_ACCESS_STORE);
+    updates.forEach((log)=>store.put(log));
+    await idbTransactionComplete(writeTx);
   }
 
   async function readOfflineAccessLogs(){
@@ -542,29 +654,60 @@
 
   async function queueOfflineAccessLog(payload,reason="OFFLINE_ATTEMPT"){
     const device=getGateDevice();
-    const entry={
-      client_log_id:"offline-"+Date.now().toString(36)+"-"+Math.random().toString(16).slice(2),
-      gate_device_code:device.device_code,
-      gate_name:device.gate_name,
-      employee_id:payload.p_employee_id||null,
-      mobile_number:payload.p_mobile_number||null,
-      result:"DENIED",
-      reason,
-      qr_token:payload.p_qr_token||null,
-      offline_created_at:new Date().toISOString(),
-      retry_count:0,
-      payload
-    };
     const db=await openOfflineDb();
-    await new Promise((resolve,reject)=>{
-      const tx=db.transaction(OFFLINE_ACCESS_STORE,"readwrite");
-      tx.objectStore(OFFLINE_ACCESS_STORE).put(entry);
-      tx.oncomplete=()=>{ db.close(); resolve(); };
-      tx.onerror=()=>{ db.close(); reject(tx.error); };
-    });
+    try{
+      const key=await getOrCreateOfflineCryptoKey(db);
+      const encryptedSensitive=await encryptOfflineSensitiveFields(key,{
+        employee_id:payload.p_employee_id||null,
+        qr_token:payload.p_qr_token||null
+      });
+      const entry={
+        client_log_id:"offline-"+Date.now().toString(36)+"-"+Math.random().toString(16).slice(2),
+        gate_name:device.gate_name,
+        result:"DENIED",
+        reason,
+        offline_created_at:new Date().toISOString(),
+        retry_count:0,
+        encrypted_sensitive:encryptedSensitive
+      };
+      await new Promise((resolve,reject)=>{
+        const tx=db.transaction(OFFLINE_ACCESS_STORE,"readwrite");
+        tx.objectStore(OFFLINE_ACCESS_STORE).put(entry);
+        tx.oncomplete=resolve;
+        tx.onerror=()=>reject(tx.error);
+      });
+    }catch(error){
+      db.close();
+      throw error;
+    }finally{
+      db.close();
+    }
     const count=await countOfflineAccessLogs();
     updateOfflinePendingBadge();
     return count;
+  }
+
+  async function decryptOfflineAccessLogs(logs){
+    const db=await openOfflineDb();
+    try{
+      const key=await getOrCreateOfflineCryptoKey(db);
+      const decrypted=[];
+      for(const log of logs||[]){
+        const sensitive=await decryptOfflineSensitiveFields(key,log.encrypted_sensitive);
+        decrypted.push({
+          client_log_id:log.client_log_id,
+          gate_name:log.gate_name||null,
+          employee_id:sensitive.employee_id||null,
+          result:log.result||"DENIED",
+          reason:log.reason||null,
+          qr_token:sensitive.qr_token||null,
+          offline_created_at:log.offline_created_at
+        });
+      }
+      return decrypted;
+    }finally{
+      db.close();
+    }
   }
 
   async function syncGateDeviceHeartbeat(){
@@ -610,9 +753,10 @@
     try{
       logs=await readOfflineAccessLogs();
       if(!logs.length) return;
+      const rpcLogs=await decryptOfflineAccessLogs(logs);
       const {data,error}=await supabaseClient.rpc("sync_offline_access_logs",{
         p_device_code:getGateDevice().device_code,
-        p_logs:logs,
+        p_logs:rpcLogs,
         p_device_token:getOfflineDeviceToken()
       });
       if(error) throw error;
