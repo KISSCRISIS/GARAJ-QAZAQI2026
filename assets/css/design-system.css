@@ -1,0 +1,20 @@
+/* ALBASHIR Design System v1.0 — Phase 3 Shared Foundation (new layer, no existing file touched) */
+:root{
+  --alb-bg:#060D1F; --alb-bg2:#0A1630; --alb-card:#0E1E3E; --alb-line:#1E3A6B;
+  --alb-primary:#061B38; --alb-blue:#007BFF; --alb-cyan:#16b8d9;
+  --alb-green:#00D084; --alb-sec-green:#12a866;
+  --alb-warning:#FFB020; --alb-amber:#FF7A1A; --alb-danger:#FF4545;
+  --alb-gold:#C9A227; --alb-gold2:#E8C84A;
+  --alb-text:#ffffff; --alb-muted:#9FB3D9;
+  --alb-r:14px; --alb-r-sm:8px; --alb-btn-h:44px;
+  --alb-font:"Segoe UI",Tahoma,Arial,sans-serif;
+  --alb-space-1:8px; --alb-space-2:12px; --alb-space-3:16px; --alb-space-4:20px;
+  --alb-shadow:0 18px 54px rgba(0,24,48,.35);
+  --alb-shadow-sm:0 8px 24px rgba(0,0,0,.30);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body.alb-ui{background:var(--alb-bg);color:var(--alb-text);font-family:var(--alb-font);min-height:100dvh;margin:0}
+body.alb-ui button,body.alb-ui input,body.alb-ui select,body.alb-ui textarea{font-family:inherit}
+body.alb-ui button{min-height:var(--alb-btn-h);border-radius:var(--alb-r-sm);cursor:pointer}
+body.alb-ui input,body.alb-ui select,body.alb-ui textarea{min-height:var(--alb-btn-h);border-radius:var(--alb-r-sm)}
