@@ -4,7 +4,7 @@
   --alb-primary:#061B38; --alb-blue:#007BFF; --alb-cyan:#16b8d9;
   --alb-green:#00D084; --alb-sec-green:#12a866;
   --alb-warning:#FFB020; --alb-amber:#FF7A1A; --alb-danger:#FF4545;
-  --alb-gold:#C9A227; --alb-gold2:#E8C84A;
+  --alb-emergency:#FF6D00; --alb-gold:#C9A227; --alb-gold2:#E8C84A;
   --alb-text:#ffffff; --alb-muted:#9FB3D9;
   --alb-r:14px; --alb-r-sm:8px; --alb-btn-h:44px;
   --alb-font:"Segoe UI",Tahoma,Arial,sans-serif;

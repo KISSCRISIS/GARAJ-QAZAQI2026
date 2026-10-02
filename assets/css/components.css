@@ -9,6 +9,7 @@
 .alb-badge{display:inline-flex;align-items:center;gap:6px;border:1px solid;border-radius:999px;padding:4px 12px;font-size:12px}
 .alb-badge.ONLINE{color:var(--alb-green);border-color:var(--alb-green)}
 .alb-badge.OFFLINE{color:#9aa7bd;border-color:#9aa7bd}
+.alb-badge.EMERGENCY{color:var(--alb-emergency);border-color:var(--alb-emergency)}
 .alb-badge.PENDING{color:var(--alb-amber);border-color:var(--alb-amber)}
 .alb-badge.APPROVED,.alb-badge.ALLOWED_PERMANENT{color:var(--alb-green);border-color:var(--alb-green)}
 .alb-badge.DENIED{color:var(--alb-danger);border-color:var(--alb-danger)}
@@ -17,11 +18,16 @@
 .alb-card{background:var(--alb-card);border:1px solid var(--alb-line);border-radius:var(--alb-r);padding:16px;box-shadow:var(--alb-shadow-sm)}
 .alb-card.gold{border-color:var(--alb-gold)}
 .alb-stat b{font-size:28px;display:block}
+/* Leadership Card (original portraits only — placement styles, no image data) */
+.alb-lead{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.alb-lead .card{text-align:center}
+.alb-lead img{width:100%;height:220px;object-fit:cover;object-position:top;border-radius:10px;border:2px solid var(--alb-gold);background:#081226}
 /* Buttons */
 .alb-btn{border:1px solid var(--alb-line);background:#0E3A8A;color:#fff;padding:10px 18px}
 .alb-btn.primary{background:var(--alb-blue);border-color:var(--alb-blue)}
 .alb-btn.secondary{background:transparent;color:var(--alb-text)}
 .alb-btn.danger{background:transparent;border-color:var(--alb-danger);color:var(--alb-danger)}
+.alb-btn.success{background:var(--alb-green);border-color:var(--alb-green);color:#00130b}
 .alb-btn.gold{background:var(--alb-gold);border-color:var(--alb-gold);color:#000}
 /* Forms */
 .alb-form label{display:block;color:var(--alb-muted);margin:10px 0 6px;font-size:12px}
@@ -29,6 +35,8 @@
 .alb-form .err-msg{color:var(--alb-danger);font-size:12px;margin-top:4px;display:none}
 .alb-form .invalid .err-msg{display:block}
 .alb-form .invalid input,.alb-form .invalid select{border-color:var(--alb-danger)}
+.alb-form input[type="file"]{padding:8px;background:#081226}
+.alb-form .file-name{color:var(--alb-muted);font-size:12px}
 /* Alerts */
 .alb-alert{border-radius:var(--alb-r-sm);padding:10px 14px;margin:10px 0;border:1px solid}
 .alb-alert.ok{border-color:var(--alb-green);background:#00D08422}

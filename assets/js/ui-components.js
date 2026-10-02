@@ -13,5 +13,9 @@
     var f = document.getElementById(fieldId);
     if (f && f.closest) f.closest(".alb-field").classList.toggle("invalid", !!on);
   }
-  w.ALBASHIR_UI = { badge: badge, alertBox: alertBox, openModal: openModal, closeModal: closeModal, markInvalid: markInvalid };
+  function bindFileName(inputId, labelId) {
+    var i = document.getElementById(inputId), l = document.getElementById(labelId);
+    if (i && l) i.addEventListener("change", function () { l.textContent = (i.files && i.files[0] && i.files[0].name) || ""; });
+  }
+  w.ALBASHIR_UI = { badge: badge, alertBox: alertBox, openModal: openModal, closeModal: closeModal, markInvalid: markInvalid, bindFileName: bindFileName };
 })(window);
