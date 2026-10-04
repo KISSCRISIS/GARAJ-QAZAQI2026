@@ -1010,6 +1010,9 @@
 
   </style>
   <link rel="stylesheet" href="./global-theme.css" />
+  <link rel="stylesheet" href="./assets/css/design-system.css" />
+  <link rel="stylesheet" href="./assets/css/components.css" />
+  <link rel="stylesheet" href="./assets/css/responsive.css" />
 </head>
 
 <body class="hospital-ui theme-admin">
@@ -1915,7 +1918,7 @@
       const session = sessionResponse.data?.session;
 
       if (!session?.user) {
-        showSetupWarning("يجب تسجيل الدخول أولًا من صفحة login.html.", "error");
+        showSetupWarning("يجب تسجيل الدخول أولًا من صفحة portal.html.", "error");
         setTimeout(() => {
           window.location.href = "./portal.html";
         }, 1200);
@@ -2886,5 +2889,7 @@
     });
   </script>
 <script src="./global-leadership.js"></script>
+<script src="./assets/js/app-state.js"></script>
+<script src="./assets/js/ui-components.js"></script>
 </body>
 </html>

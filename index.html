@@ -1,52 +1,71 @@
 <!doctype html>
-<!-- QR sessions are issued only after Supabase validates an approved gate device. -->
+<!--
+  ALBASHIR EMERGENCY HOSPITAL — Guard Operational Screen
+  File: index.html
+  Version: 2026.10.02-guard-v2
+  Security Model: Approved gate device + heartbeat + QR session issued by Supabase only.
+  This page never generates QR without server validation.
+  Reviewed 2026-10-02: audit fixes A-H (removed ineffective meta, library wait,
+  DENIED audit payload, guarded device read, NOT_APPROVED 60s wait,
+  photo protocol allowlist, 330px QR, SW version note). No logic redesign.
+-->
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="theme-color" content="#020813" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <!-- NOTE: X-Content-Type-Options / CSP are response headers (netlify.toml). They cannot be set via <meta>. -->
   <title>شاشة الحارس | ALBASHIR EMERGENCY HOSPITAL</title>
+
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="apple-touch-icon" href="./logo.jpeg" />
   <link rel="manifest" href="./manifest.json" />
 
-  <!-- QR rendering is local, but every displayed URL must come from a validated Supabase session. -->
-  <script src="./supabase.min.js"></script>
-  <script src="./qrcode.min.js"></script>
+  <!-- Local libraries only. No CDN. No inline eval. -->
+  <script src="./supabase.min.js" defer></script>
+  <script src="./qrcode.min.js" defer></script>
 
   <style>
     :root {
       --bg: #020813;
       --bg2: #06101f;
-      --panel: rgba(15, 23, 42, 0.76);
-      --panel2: rgba(2, 8, 19, 0.72);
-      --line: rgba(148, 163, 184, 0.22);
+      --panel: rgba(255, 255, 255, 0.94);
+      --panel-soft: rgba(255, 255, 255, 0.86);
+      --line: rgba(148, 163, 184, 0.24);
+      --line-strong: rgba(148, 163, 184, 0.42);
       --text: #e5f2ff;
-      --muted: #9fb3c8;
+      --text-dark: #062044;
+      --muted-dark: #475569;
+      --muted-light: #9fb3c8;
       --blue: #38bdf8;
+      --blue-deep: #0284c7;
       --green: #22c55e;
+      --green-deep: #15803d;
       --red: #ef4444;
+      --red-deep: #b91c1c;
       --yellow: #facc15;
+      --yellow-deep: #a16207;
       --orange: #fb923c;
       --shadow-blue: 0 0 42px rgba(56, 189, 248, 0.20);
       --shadow-green: 0 0 52px rgba(34, 197, 94, 0.42);
       --shadow-red: 0 0 52px rgba(239, 68, 68, 0.42);
       --shadow-yellow: 0 0 52px rgba(250, 204, 21, 0.34);
+      --radius-lg: 22px;
+      --radius-md: 16px;
+      --radius-sm: 10px;
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
-    html,
-    body {
+    html, body {
       margin: 0;
       min-height: 100%;
       font-family: Tahoma, Arial, sans-serif;
-      background:
-        radial-gradient(circle at 15% 0%, rgba(56, 189, 248, 0.18), transparent 34%),
-        radial-gradient(circle at 85% 5%, rgba(34, 197, 94, 0.12), transparent 30%),
-        linear-gradient(180deg, #020813 0%, #06101f 46%, #000 100%);
       color: var(--text);
+      background: var(--bg);
     }
 
     body {
@@ -57,15 +76,15 @@
         url("./hero.jpeg") center top / cover fixed no-repeat;
     }
 
-    a {
-      color: #a7f3d0;
-    }
+    a { color: #0f766e; }
 
     .app-shell {
       width: min(1160px, 100%);
       margin: 0 auto;
       padding: 0 18px 24px;
     }
+
+    /* ---------- Page name ---------- */
 
     .page-name {
       width: min(100%, 760px);
@@ -76,19 +95,23 @@
       font-size: 28px;
       font-weight: 950;
       text-align: center;
-      letter-spacing: 0;
       line-height: 1.35;
       text-wrap: balance;
       text-shadow: 0 0 22px rgba(2, 8, 19, 0.82);
     }
+    .page-name-sub {
+      display: block;
+      margin-top: 4px;
+      font-size: 0.62em;
+      font-weight: 800;
+      color: rgba(186, 230, 253, 0.86);
+    }
 
     @media (max-width: 760px) {
-      .page-name {
-        padding: 12px 12px 10px;
-        font-size: 21px;
-        line-height: 1.45;
-      }
+      .page-name { padding: 12px 12px 10px; font-size: 21px; line-height: 1.45; }
     }
+
+    /* ---------- Topbar ---------- */
 
     .topbar {
       display: flex;
@@ -100,11 +123,7 @@
       flex-wrap: wrap;
     }
 
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+    .brand { display: flex; align-items: center; gap: 12px; }
 
     .brand-icon {
       width: 78px;
@@ -116,43 +135,40 @@
       border: 1px solid rgba(56, 189, 248, 0.34);
       box-shadow: var(--shadow-blue);
       font-size: 0;
+      flex: 0 0 auto;
     }
 
     .brand-title {
       margin: 0;
-      font-size: clamp(26px, 4vw, 36px);
-      letter-spacing: 0;
+      font-size: clamp(22px, 3.6vw, 32px);
       font-weight: 900;
       color: #f8fbff;
+      letter-spacing: 0;
     }
 
     .brand-subtitle {
-      color: var(--muted);
-      font-size: 20px;
+      color: var(--muted-light);
+      font-size: 15px;
       margin-top: 4px;
     }
 
     .pill {
       border: 1px solid var(--line);
       background: rgba(15, 23, 42, 0.72);
-      color: var(--muted);
+      color: var(--muted-light);
       padding: 10px 14px;
       border-radius: 999px;
       backdrop-filter: blur(18px);
       box-shadow: 0 0 22px rgba(56, 189, 248, 0.06);
       white-space: nowrap;
       font-size: 13px;
+      font-weight: 800;
     }
+    .pill.ready { color: #bae6fd; border-color: rgba(56, 189, 248, 0.32); }
+    .pill.error { color: #fecaca; border-color: rgba(239, 68, 68, 0.36); }
+    .pill.warn  { color: #fde68a; border-color: rgba(250, 204, 21, 0.42); }
 
-    .pill.ready {
-      color: #bae6fd;
-      border-color: rgba(56, 189, 248, 0.32);
-    }
-
-    .pill.error {
-      color: #fecaca;
-      border-color: rgba(239, 68, 68, 0.36);
-    }
+    /* ---------- Layout ---------- */
 
     .main-grid {
       display: grid;
@@ -161,22 +177,18 @@
       align-items: center;
     }
 
-    @media (max-width: 920px) {
-      .main-grid {
-        grid-template-columns: 1fr;
-      }
-    }
+    /* ---------- Panels ---------- */
 
     .panel {
       position: relative;
-      background: rgba(255, 255, 255, 0.92);
+      background: var(--panel);
       border: 1px solid rgba(203, 213, 225, 0.72);
-      border-radius: 22px;
+      border-radius: var(--radius-lg);
       padding: 20px;
       backdrop-filter: blur(16px);
       box-shadow: 0 18px 50px rgba(15, 23, 42, 0.16);
       overflow: hidden;
-      color: #062044;
+      color: var(--text-dark);
     }
 
     .panel::before {
@@ -190,10 +202,9 @@
       opacity: 0.5;
     }
 
-    .panel > * {
-      position: relative;
-      z-index: 1;
-    }
+    .panel > * { position: relative; z-index: 1; }
+
+    /* ---------- QR panel ---------- */
 
     .qr-panel {
       text-align: center;
@@ -209,10 +220,7 @@
     }
 
     @media (max-width: 760px) {
-      .qr-panel {
-        grid-template-columns: 1fr;
-        gap: 18px;
-      }
+      .qr-panel { grid-template-columns: 1fr; gap: 18px; }
     }
 
     .qr-stage {
@@ -233,21 +241,17 @@
       width: 330px !important;
       height: 330px !important;
       max-width: 100%;
-      box-shadow: 0 0 28px rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 28px rgba(15, 23, 42, 0.06);
     }
 
-    .qr-title {
-      display: none;
-      margin: 0;
-      font-size: 1px;
-      font-weight: 900;
-    }
+    .qr-title { display: none; }
 
     .qr-caption {
-      color: #64748b;
+      color: var(--muted-dark);
       margin: 12px 0;
       line-height: 1.8;
       font-size: 14px;
+      font-weight: 700;
     }
 
     .qr-link {
@@ -255,10 +259,10 @@
       direction: ltr;
       text-align: center;
       word-break: break-all;
-      color: #a7f3d0;
-      background: rgba(2, 8, 19, 0.52);
-      border: 1px solid rgba(34, 197, 94, 0.18);
-      border-radius: 14px;
+      color: #0f766e;
+      background: rgba(2, 8, 19, 0.04);
+      border: 1px solid rgba(34, 197, 94, 0.24);
+      border-radius: var(--radius-sm);
       padding: 10px;
       margin: 12px 0;
       font-size: 12px;
@@ -277,12 +281,13 @@
     .qr-health-item {
       padding: 9px 10px;
       border: 1px solid rgba(14, 165, 233, 0.18);
-      border-radius: 10px;
+      border-radius: var(--radius-sm);
       background: rgba(2, 8, 23, 0.04);
-      color: #475569;
+      color: var(--muted-dark);
       font-size: 11px;
       font-weight: 800;
       line-height: 1.45;
+      text-align: start;
     }
 
     .qr-health-item strong {
@@ -293,9 +298,34 @@
       word-break: break-word;
     }
 
-    .qr-health-item.wide {
-      grid-column: 1 / -1;
+    .qr-health-item.wide { grid-column: 1 / -1; }
+
+    /* ---------- Countdown ---------- */
+
+    .countdown {
+      display: inline-grid;
+      place-items: center;
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      margin: 0 auto 8px;
+      color: var(--text-dark);
+      border: 14px solid rgba(37, 99, 235, 0.88);
+      background: #ffffff;
+      font-size: 46px;
+      font-weight: 900;
+      transition: border-color 0.25s ease, color 0.25s ease;
     }
+    .countdown.warn   { border-color: rgba(250, 204, 21, 0.92); color: var(--yellow-deep); }
+    .countdown.danger { border-color: rgba(239, 68, 68, 0.92);  color: var(--red-deep); }
+
+    .countdown-label {
+      color: var(--muted-dark);
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    /* ---------- Buttons ---------- */
 
     .button-row {
       display: flex;
@@ -305,14 +335,13 @@
       margin-top: 12px;
     }
 
-    button,
-    .btn {
+    button, .btn {
       border: 0;
       outline: 0;
       cursor: pointer;
       color: white;
       font-weight: 900;
-      border-radius: 16px;
+      border-radius: var(--radius-md);
       padding: 12px 16px;
       background: linear-gradient(135deg, #0284c7, #0ea5e9);
       box-shadow: 0 0 18px rgba(56, 189, 248, 0.16);
@@ -323,32 +352,18 @@
       align-items: center;
       justify-content: center;
       gap: 7px;
+      font-size: 15px;
     }
 
-    button:hover,
-    .btn:hover {
-      transform: translateY(-1px);
-      filter: brightness(1.08);
-    }
+    button:hover:not(:disabled), .btn:hover { transform: translateY(-1px); filter: brightness(1.08); }
+    button:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+    button:focus-visible, .btn:focus-visible { outline: 3px solid rgba(56, 189, 248, 0.55); outline-offset: 2px; }
 
-    button:disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
-      transform: none;
-    }
+    .btn-green  { background: linear-gradient(135deg, #16a34a, #059669); }
+    .btn-red    { background: linear-gradient(135deg, #991b1b, #ef4444); }
+    .btn-yellow { background: linear-gradient(135deg, #a16207, #facc15); color: #111827; }
 
-    .btn-green {
-      background: linear-gradient(135deg, #16a34a, #059669);
-    }
-
-    .btn-red {
-      background: linear-gradient(135deg, #991b1b, #ef4444);
-    }
-
-    .btn-yellow {
-      background: linear-gradient(135deg, #a16207, #facc15);
-      color: #111827;
-    }
+    /* ---------- Decision panel ---------- */
 
     .decision-panel {
       min-height: 0;
@@ -364,44 +379,52 @@
     }
 
     @media (max-width: 820px) {
-      .decision-panel {
-        grid-template-columns: 1fr;
-      }
-      .scan-result-main {
-        grid-template-columns: 1fr;
-        text-align: center;
-      }
-      .scan-photo,
-      .status-orb {
-        margin: 0 auto;
-      }
-      .scan-details-row {
-        grid-template-columns: 1fr;
-        text-align: center;
-      }
-      .scan-classification {
-        margin: 0 auto;
-      }
+      .decision-panel { grid-template-columns: 1fr; }
+      .scan-result-main { grid-template-columns: 1fr; text-align: center; }
+      .scan-photo, .status-orb { margin: 0 auto; }
+      .scan-details-row { grid-template-columns: 1fr; text-align: center; }
+      .scan-classification { margin: 0 auto; }
     }
 
-    .decision-panel.ready {
-      box-shadow: var(--shadow-blue);
-      border-color: rgba(56, 189, 248, 0.42);
+    .decision-panel.ready   { box-shadow: var(--shadow-blue);   border-color: rgba(56, 189, 248, 0.42); }
+    .decision-panel.allowed { box-shadow: var(--shadow-green);  border-color: rgba(34, 197, 94, 0.72); }
+    .decision-panel.denied  { box-shadow: var(--shadow-red);    border-color: rgba(239, 68, 68, 0.72); }
+    .decision-panel.limited { box-shadow: var(--shadow-yellow); border-color: rgba(250, 204, 21, 0.78); }
+
+    .last-scan-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      grid-column: 1 / -1;
+      font-size: 26px;
+      font-weight: 950;
+      color: var(--text-dark);
+      gap: 12px;
+      flex-wrap: wrap;
     }
 
-    .decision-panel.allowed {
-      box-shadow: var(--shadow-green);
-      border-color: rgba(34, 197, 94, 0.72);
+    .scan-result-main {
+      display: grid;
+      grid-template-columns: 170px 160px 1fr;
+      gap: 20px;
+      align-items: center;
+      padding: 12px;
+      border-radius: 18px;
+      background: linear-gradient(90deg, rgba(220, 252, 231, .86), rgba(255, 255, 255, .72));
+      transition: background 0.25s ease;
     }
 
-    .decision-panel.denied {
-      box-shadow: var(--shadow-red);
-      border-color: rgba(239, 68, 68, 0.72);
-    }
+    .ready   .scan-result-main { background: linear-gradient(90deg, rgba(224, 242, 254, .86), rgba(255, 255, 255, .72)); }
+    .denied  .scan-result-main { background: linear-gradient(90deg, rgba(254, 226, 226, .86), rgba(255, 255, 255, .72)); }
+    .limited .scan-result-main { background: linear-gradient(90deg, rgba(254, 249, 195, .86), rgba(255, 255, 255, .72)); }
 
-    .decision-panel.limited {
-      box-shadow: var(--shadow-yellow);
-      border-color: rgba(250, 204, 21, 0.78);
+    .scan-photo {
+      width: 160px;
+      height: 160px;
+      border-radius: 18px;
+      object-fit: cover;
+      background: #e2e8f0;
+      border: 1px solid rgba(148, 163, 184, .4);
     }
 
     .status-orb {
@@ -414,23 +437,21 @@
       font-size: 84px;
       font-weight: 950;
       color: #fff;
-      background: radial-gradient(circle, #22c55e, #15803d);
-      border: 1px solid rgba(56, 189, 248, 0.4);
-      box-shadow: 0 0 42px rgba(56, 189, 248, 0.24);
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.38), rgba(56, 189, 248, 0.06));
+      border: 1px solid rgba(56, 189, 248, 0.62);
+      box-shadow: 0 0 46px rgba(56, 189, 248, 0.35);
+      transition: all 0.25s ease;
     }
-
     .allowed .status-orb {
       background: radial-gradient(circle, rgba(34, 197, 94, 0.38), rgba(34, 197, 94, 0.06));
       border-color: rgba(34, 197, 94, 0.62);
       box-shadow: 0 0 46px rgba(34, 197, 94, 0.35);
     }
-
     .denied .status-orb {
       background: radial-gradient(circle, rgba(239, 68, 68, 0.38), rgba(239, 68, 68, 0.06));
       border-color: rgba(239, 68, 68, 0.62);
       box-shadow: 0 0 46px rgba(239, 68, 68, 0.35);
     }
-
     .limited .status-orb {
       background: radial-gradient(circle, rgba(250, 204, 21, 0.42), rgba(250, 204, 21, 0.06));
       border-color: rgba(250, 204, 21, 0.72);
@@ -440,89 +461,105 @@
     .decision-title {
       margin: 0;
       text-align: center;
-      font-size: clamp(38px, 7vw, 60px);
+      font-size: clamp(34px, 6vw, 56px);
       font-weight: 950;
-      letter-spacing: 0;
       line-height: 1.18;
-      color: #15803d;
+      transition: color 0.25s ease;
     }
+    .ready   .decision-title { color: #0c4a6e; }
+    .allowed .decision-title { color: var(--green-deep); }
+    .denied  .decision-title { color: var(--red-deep); }
+    .limited .decision-title { color: var(--yellow-deep); }
 
     .decision-message {
       max-width: 520px;
       text-align: center;
       margin: 10px auto 0;
-      font-size: clamp(16px, 3.4vw, 23px);
-      color: #64748b;
+      font-size: clamp(15px, 3vw, 20px);
+      color: var(--muted-dark);
       line-height: 1.8;
+      font-weight: 700;
     }
+    .denied  .decision-message { color: #7f1d1d; }
+    .limited .decision-message { color: #78350f; }
 
     .employee-line {
       margin-top: 18px;
       text-align: center;
-      color: #062044;
+      color: var(--text-dark);
       font-weight: 900;
       min-height: 26px;
     }
-    .last-scan-title{display:flex;align-items:center;justify-content:space-between;grid-column:1/-1;font-size:26px;font-weight:950;color:#062044}
-    .scan-result-main{display:grid;grid-template-columns:170px 160px 1fr;gap:20px;align-items:center;padding:12px;border-radius:18px;background:linear-gradient(90deg,rgba(220,252,231,.86),rgba(255,255,255,.72))}
-    .scan-photo{width:160px;height:160px;border-radius:18px;object-fit:cover;background:#e2e8f0;border:1px solid rgba(148,163,184,.4)}
-    .scan-details{display:grid;gap:10px;color:#062044;font-size:17px}
-    .scan-details-row{display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:center}
-    .scan-label{color:#64748b;font-weight:900}
-    .scan-classification{display:inline-flex;width:max-content;padding:8px 14px;border-radius:14px;background:#dbeafe;color:#075985;font-weight:900}
 
-    .countdown {
-      display: inline-grid;
-      place-items: center;
-      width: 160px;
-      height: 160px;
-      border-radius: 50%;
-      margin: 0 auto 18px;
-      color: #062044;
-      border: 14px solid rgba(37, 99, 235, 0.88);
-      background: #ffffff;
-      font-size: 46px;
+    .scan-details { display: grid; gap: 10px; color: var(--text-dark); font-size: 17px; }
+    .scan-details-row {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+    .scan-label { color: var(--muted-dark); font-weight: 900; }
+
+    .scan-classification {
+      display: inline-flex;
+      width: max-content;
+      padding: 8px 14px;
+      border-radius: 14px;
+      background: #dbeafe;
+      color: #075985;
       font-weight: 900;
     }
-    .countdown-label{color:#64748b;font-size:18px;font-weight:900}
+
+    /* ---------- Notices ---------- */
 
     .notice {
       margin: 14px 0;
       padding: 13px 14px;
-      border-radius: 16px;
+      border-radius: var(--radius-md);
       border: 1px solid rgba(250, 204, 21, 0.36);
       background: rgba(250, 204, 21, 0.10);
       color: #fef3c7;
       line-height: 1.7;
+      font-weight: 700;
+    }
+    .notice.error { border-color: rgba(239, 68, 68, 0.42); background: rgba(239, 68, 68, 0.10); color: #fecaca; }
+    .notice.ok    { border-color: rgba(34, 197, 94, 0.38);  background: rgba(34, 197, 94, 0.10);  color: #bbf7d0; }
+
+    /* On light panels the notice needs dark text for contrast. */
+    .panel .notice,
+    .violation-panel .notice {
+      background: rgba(250, 204, 21, 0.20);
+      border-color: rgba(161, 98, 7, 0.42);
+      color: #78350f;
+    }
+    .panel .notice.error,
+    .violation-panel .notice.error {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(185, 28, 28, 0.42);
+      color: #991b1b;
+    }
+    .panel .notice.ok,
+    .violation-panel .notice.ok {
+      background: rgba(34, 197, 94, 0.12);
+      border-color: rgba(21, 128, 61, 0.42);
+      color: #166534;
     }
 
-    .notice.error {
-      border-color: rgba(239, 68, 68, 0.42);
-      background: rgba(239, 68, 68, 0.10);
-      color: #fecaca;
-    }
+    .hidden { display: none !important; }
 
-    .notice.ok {
-      border-color: rgba(34, 197, 94, 0.38);
-      background: rgba(34, 197, 94, 0.10);
-      color: #bbf7d0;
-    }
-
-    .hidden {
-      display: none !important;
-    }
+    /* ---------- Violation panel ---------- */
 
     .violation-panel {
       margin: 24px auto 0;
-      width: min(1100px,100%);
-      border-color: rgba(248,113,113,.5);
-      background: linear-gradient(90deg, rgba(254,226,226,.96), rgba(255,241,242,.92));
+      width: min(1100px, 100%);
+      border-color: rgba(248, 113, 113, .5);
+      background: linear-gradient(90deg, rgba(254, 226, 226, .96), rgba(255, 241, 242, .92));
     }
 
     .violation-panel h2 {
       margin-top: 0;
       color: #dc2626;
-      font-size: clamp(28px, 5vw, 42px);
+      font-size: clamp(24px, 4.2vw, 36px);
       text-align: center;
     }
 
@@ -532,208 +569,52 @@
       gap: 10px;
       align-items: end;
     }
-
-    @media (max-width: 760px) {
-      .form-grid {
-        grid-template-columns: 1fr;
-      }
-    }
+    @media (max-width: 760px) { .form-grid { grid-template-columns: 1fr; } }
 
     label {
       display: block;
-      color: var(--muted);
+      color: var(--muted-dark);
       font-size: 13px;
       margin: 5px 0;
+      font-weight: 800;
     }
 
-    input,
-    textarea {
+    input, textarea {
       width: 100%;
       border: 1px solid rgba(148, 163, 184, 0.26);
       background: #ffffff;
-      color: #062044;
-      border-radius: 16px;
+      color: var(--text-dark);
+      border-radius: var(--radius-md);
       padding: 13px;
       outline: none;
       font-family: inherit;
+      font-size: 15px;
     }
-
-    textarea {
-      min-height: 88px;
-      resize: vertical;
-    }
-
-    input:focus,
-    textarea:focus {
+    textarea { min-height: 88px; resize: vertical; }
+    input:focus, textarea:focus {
       border-color: rgba(56, 189, 248, 0.55);
       box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.08);
     }
-
-    .file-input {
-      border-style: dashed;
-    }
+    .file-input { border-style: dashed; }
 
     .mini {
       font-size: 12px;
-      color: var(--muted);
+      color: var(--muted-dark);
       line-height: 1.7;
+      font-weight: 600;
     }
 
-    .debug-line {
-      margin-top: 8px;
-      direction: ltr;
-      text-align: left;
-      font-size: 11px;
-      line-height: 1.6;
-      color: #fecaca;
-      word-break: break-word;
-      opacity: 0.9;
-    }
+    /* ---------- Gate actions ---------- */
 
-    .app-hero-cover {
-      display: none;
-      position: relative;
-      min-height: 0;
-      margin: 0;
-      border-radius: 30px;
-      overflow: hidden;
-      border: 1px solid rgba(56, 189, 248, 0.24);
-      background:
-        linear-gradient(90deg, rgba(2, 8, 19, 0.92), rgba(2, 8, 19, 0.56), rgba(2, 8, 19, 0.24)),
-        url("./hero.jpeg") center center / cover no-repeat;
-      box-shadow: 0 0 42px rgba(56, 189, 248, 0.18);
-    }
-
-    .app-hero-cover::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      background:
-        radial-gradient(circle at 12% 12%, rgba(56, 189, 248, 0.20), transparent 34%),
-        linear-gradient(180deg, transparent, rgba(2, 8, 19, 0.72));
-    }
-
-    .app-hero-content {
-      position: relative;
-      z-index: 1;
-      width: min(620px, 100%);
-      min-height: 220px;
-      padding: 22px;
+    .gate-actions {
       display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
-    }
-
-    .app-hero-kicker {
-      display: inline-flex;
-      width: fit-content;
-      padding: 7px 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(239, 68, 68, 0.36);
-      background: rgba(239, 68, 68, 0.12);
-      color: #fecaca;
-      font-size: 12px;
-      font-weight: 900;
-      margin-bottom: 10px;
-    }
-
-    .app-hero-title {
-      margin: 0;
-      font-size: clamp(26px, 6vw, 46px);
-      font-weight: 950;
-      letter-spacing: -0.05em;
-      line-height: 1.1;
-      color: #f8fbff;
-      text-shadow: 0 0 24px rgba(2, 8, 19, 0.80);
-    }
-
-    .app-hero-subtitle {
-      margin: 9px 0 0;
-      color: rgba(224, 242, 254, 0.86);
-      line-height: 1.75;
-      font-size: 14px;
-      text-shadow: 0 0 18px rgba(2, 8, 19, 0.80);
-    }
-
-    @media (max-width: 700px) {
-      .app-hero-cover,
-      .app-hero-content {
-        min-height: 190px;
-      }
-    }
-
-    .hospital-identity {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-top: 12px;
-      padding: 12px;
-      border-radius: 20px;
-      background: rgba(2, 8, 19, 0.42);
-      border: 1px solid rgba(56, 189, 248, 0.18);
-      box-shadow: inset 0 0 22px rgba(56, 189, 248, 0.05);
-    }
-
-    .hospital-logo {
-      width: 62px;
-      height: 62px;
-      border-radius: 18px;
-      object-fit: cover;
-      border: 1px solid rgba(56, 189, 248, 0.34);
-      box-shadow: 0 0 22px rgba(56, 189, 248, 0.16);
-      background: #020813;
-      flex: 0 0 auto;
-    }
-
-    .hospital-name-ar {
-      font-size: 14px;
-      font-weight: 900;
-      color: #e0f2fe;
-      line-height: 1.45;
-    }
-
-    .hospital-name-en {
-      direction: ltr;
-      text-align: left;
-      font-size: 12px;
-      color: rgba(186, 230, 253, 0.76);
-      margin-top: 3px;
-      letter-spacing: 0.02em;
-    }
-
-    .permission-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      justify-content: center;
       gap: 8px;
-      margin-top: 10px;
+      flex-wrap: wrap;
+      margin-top: 4px;
     }
 
-    @media (max-width: 900px) {
-      .permission-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .permission-box {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      min-height: 44px;
-      padding: 10px;
-      border-radius: 14px;
-      border: 1px solid rgba(148, 163, 184, 0.18);
-      background: rgba(2, 8, 19, 0.42);
-      color: #cbd5e1;
-      font-size: 12px;
-      line-height: 1.5;
-    }
-
-    .permission-box input {
-      width: auto;
-      accent-color: #38bdf8;
-      margin: 0;
-    }
+    /* ---------- Creator signature ---------- */
 
     .creator-signature {
       width: min(1180px, 100%);
@@ -743,7 +624,6 @@
       justify-content: flex-start;
       direction: ltr;
     }
-
     .creator-signature-card {
       display: inline-flex;
       flex-direction: column;
@@ -756,7 +636,6 @@
       box-shadow: 0 0 24px rgba(56, 189, 248, 0.10);
       backdrop-filter: blur(18px);
     }
-
     .creator-label {
       font-size: 10px;
       letter-spacing: 0.22em;
@@ -764,7 +643,6 @@
       color: rgba(186, 230, 253, 0.76);
       font-weight: 800;
     }
-
     .creator-name {
       font-family: "Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive;
       font-size: clamp(16px, 3.2vw, 22px);
@@ -774,15 +652,28 @@
       white-space: nowrap;
     }
 
-    .bottom-nav {
-      display: none;
-      flex-wrap: wrap;
-      gap: 8px;
-      justify-content: center;
-      margin-top: 16px;
+    /* ---------- Accessibility ---------- */
+
+    .sr-only {
+      position: absolute;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0, 0, 0, 0);
+      white-space: nowrap; border: 0;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
     }
   </style>
+
   <link rel="stylesheet" href="./global-theme.css" />
+  <link rel="stylesheet" href="./assets/css/design-system.css" />
+  <link rel="stylesheet" href="./assets/css/components.css" />
+  <link rel="stylesheet" href="./assets/css/responsive.css" />
 </head>
 
 <body class="hospital-ui theme-guard">
@@ -791,6 +682,7 @@
       <span class="page-name-main">خاص بالحارس الأمني للكراج</span>
       <span class="page-name-sub">بوابة الطوارئ · شاشة التشغيل المباشر</span>
     </div>
+
     <header class="topbar">
       <div class="brand">
         <div class="brand-icon" role="img" aria-label="البشير ALBASHIR Gate"></div>
@@ -799,12 +691,13 @@
           <div class="brand-subtitle">مستشفى الإسعاف والطوارئ / البشير</div>
         </div>
       </div>
-      <div class="pill" id="connectionBadge">جارِ فحص الاتصال...</div>
+      <div class="pill" id="connectionBadge" role="status" aria-live="polite">جارِ فحص الاتصال...</div>
     </header>
 
-    <div id="setupWarning" class="notice hidden"></div>
+    <div id="setupWarning" class="notice hidden" role="alert" aria-live="assertive"></div>
 
     <section class="main-grid">
+      <!-- QR panel -->
       <div class="panel qr-panel">
         <h2 class="qr-title">اعرض الكود للموظف</h2>
 
@@ -815,9 +708,9 @@
         </div>
 
         <div>
-          <div class="countdown" id="qrCountdown">30</div>
+          <div class="countdown" id="qrCountdown" aria-live="polite">30</div>
           <div class="countdown-label">ثانية</div>
-          <p class="qr-caption">QR مباشر<br>يتغير كل 30 ثانية<br>ويُستخدم مرة واحدة</p>
+          <p class="qr-caption">QR مباشر<br />يتغير كل 30 ثانية<br />ويُستخدم مرة واحدة</p>
         </div>
 
         <div class="qr-health" aria-label="حالة تشغيل QR">
@@ -833,24 +726,28 @@
         </div>
       </div>
 
+      <!-- Gate actions -->
       <div class="gate-actions" aria-label="أوامر شاشة الحارس">
-        <button type="button" class="btn-green qr-refresh-action" onclick="refreshQrNow()">↻ QR جديد</button>
+        <button type="button" class="btn-green qr-refresh-action" id="refreshQrButton">↻ QR جديد</button>
       </div>
 
-      <div class="panel decision-panel ready" id="decisionPanel">
+      <!-- Decision panel -->
+      <div class="panel decision-panel ready" id="decisionPanel" aria-live="polite">
         <div class="last-scan-title">
           <span>آخر عملية مسح</span>
           <span class="pill ready" id="lastScanAge">بانتظار المسح</span>
         </div>
+
         <div class="scan-result-main">
           <img class="scan-photo" id="scanPhoto" src="./logo.jpeg" alt="صورة الموظف" />
-          <div class="status-orb" id="statusIcon">◆</div>
+          <div class="status-orb" id="statusIcon" aria-hidden="true">◆</div>
           <div>
             <h2 class="decision-title" id="decisionTitle">الكود جاهز للمسح</h2>
             <p class="decision-message" id="decisionMessage">تظهر هنا نتيجة مسح الموظف.</p>
             <div class="employee-line" id="employeeLine"></div>
           </div>
         </div>
+
         <div class="scan-details">
           <div class="scan-details-row"><span class="scan-label">الاسم:</span><strong id="scanName">-</strong></div>
           <div class="scan-details-row"><span class="scan-label">الرقم الوظيفي:</span><strong id="scanEmployeeId">-</strong></div>
@@ -861,6 +758,7 @@
       </div>
     </section>
 
+    <!-- Violation panel -->
     <section class="panel violation-panel">
       <h2>تسجيل مخالفة بصورة</h2>
       <p class="mini">
@@ -871,23 +769,23 @@
       <div class="form-grid">
         <div>
           <label for="violationEmployee">رقم الموظف إن وجد</label>
-          <input id="violationEmployee" type="text" placeholder="اختياري" inputmode="numeric" />
+          <input id="violationEmployee" type="text" placeholder="اختياري" inputmode="numeric" autocomplete="off" />
 
           <label for="violationPhoto">التقاط / رفع صورة</label>
-          <input id="violationPhoto" class="file-input" type="file" accept="image/*" capture="environment" />
+          <input id="violationPhoto" class="file-input" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" />
         </div>
 
         <div>
           <label for="violationNote">ملاحظة قصيرة</label>
-          <textarea id="violationNote" placeholder="اختياري"></textarea>
+          <textarea id="violationNote" placeholder="اختياري" maxlength="500"></textarea>
         </div>
       </div>
 
       <div class="button-row" style="justify-content:flex-start">
-        <button type="button" class="btn-red" id="violationButton" onclick="submitViolationReport()">إرسال المخالفة للأدمن</button>
+        <button type="button" class="btn-red" id="violationButton">إرسال المخالفة للأدمن</button>
       </div>
 
-      <div id="violationResult" class="notice hidden"></div>
+      <div id="violationResult" class="notice hidden" role="status" aria-live="polite"></div>
     </section>
 
     <footer class="creator-signature" aria-label="Creator signature">
@@ -899,36 +797,58 @@
   </main>
 
   <script>
-    const APP_CONFIG = {
+  "use strict";
+  (function () {
+    /* =========================================================
+       CONFIG
+       ========================================================= */
+    const APP_CONFIG = Object.freeze({
       APP_NAME: "ALBASHIR EMERGENCY HOSPITAL",
       SUPABASE_URL: "https://qinsfvlspdticposbvst.supabase.co",
       SUPABASE_ANON_KEY: "sb_publishable_okoDqbwZNNvrCZQ025RkPw_qFXkA7I8",
       LIVE_SITE_URL: window.location.origin,
-      VERIFY_PATH: "/verify.html"
-    };
+      VERIFY_PATH: "./verify.html"
+    });
 
-    let supabaseClient = null;
-    let currentQrUrl = "";
-    let lastValidQr = {
-      url: "",
-      token: "",
-      createdAt: null,
-      expiresAt: null,
-      secure: null
-    };
-    const APP_VERSION = "2026.09.28-24x7";
+    const APP_VERSION = "2026.10.02-guard-v2";
+    // FIX-H: must match service-worker.js CACHE_VERSION. Bump both together on release.
+    const CACHE_VERSION = "emergency-room-parking-offline-v15";
+
     const QR_REFRESH_SECONDS = 30;
     const QR_REQUEST_TIMEOUT_MS = 8000;
     const QR_WATCHDOG_SECONDS = 90;
     const QR_RETRY_BACKOFF_SECONDS = [2, 5, 15, 30];
+    const RESET_GUARD_DISPLAY_MS = 6000;
+    // FIX-C: pending device waits for next heartbeat instead of hammering QR.
+    const NOT_APPROVED_RETRY_SECONDS = 60;
+
+    const STORAGE_KEYS = Object.freeze({
+      LAST_VALID_QR: "erp_last_valid_qr_v2",
+      GATE_ERROR_RING: "erp_gate_error_ring_v1",
+      GATE_AUDIT_QUEUE: "erp_gate_audit_queue_v1",
+      GATE_DEVICE: "erp_gate_device_v1",
+      OFFLINE_DEVICE_TOKEN: "erp_offline_device_token_v1"
+    });
+
+    const AUDIT_QUEUE_MAX = 50;
+    const ERROR_RING_MAX = 50;
+
+    /* =========================================================
+       STATE
+       ========================================================= */
+    let supabaseClient = null;
+    let currentQrUrl = "";
+    let lastValidQr = { url: "", token: "", createdAt: null, expiresAt: null, secure: null };
     let qrTimer = QR_REFRESH_SECONDS;
     let guardStatusChannel = null;
     let lastGuardStatusFingerprint = "";
+
     const qrRuntime = {
       refreshing: false,
       attempts: 0,
       consecutiveFailures: 0,
       lastSuccessAt: null,
+      lastAttemptAt: null,
       lastScanAt: null,
       lastRpcMs: null,
       realtimeStatus: "غير متصل",
@@ -937,14 +857,11 @@
       gateDeviceApproved: false,
       heartbeatVerifiedAt: null,
       heartbeatLastError: "",
-      startedAt: Date.now()
+      startedAt: Date.now(),
+      wasOnline: navigator.onLine,
+      lastDeviceState: "unknown" // unknown | approved | pending | rejected | offline
     };
-    const CACHE_VERSION = "emergency-room-parking-offline-v14";
-    const LAST_VALID_QR_STORAGE_KEY = "erp_last_valid_qr_v2";
-    const GATE_ERROR_RING_KEY = "erp_gate_error_ring_v1";
-    const GATE_AUDIT_QUEUE_KEY = "erp_gate_audit_queue_v1";
-    const GATE_DEVICE_STORAGE_KEY = "erp_gate_device_v1";
-    const OFFLINE_DEVICE_TOKEN_STORAGE_KEY = "erp_offline_device_token_v1";
+
     const lifecycle = {
       intervals: new Map(),
       timeouts: new Map()
@@ -952,44 +869,59 @@
 
     const $ = (id) => document.getElementById(id);
 
+    /* =========================================================
+       LIFECYCLE HELPERS
+       ========================================================= */
     function setManagedInterval(name, callback, delay) {
       clearManagedInterval(name);
-      const id = setInterval(callback, delay);
+      const id = window.setInterval(callback, delay);
       lifecycle.intervals.set(name, id);
       return id;
     }
-
     function clearManagedInterval(name) {
       const id = lifecycle.intervals.get(name);
-      if (id) clearInterval(id);
+      if (id !== undefined) window.clearInterval(id);
       lifecycle.intervals.delete(name);
     }
-
     function setManagedTimeout(name, callback, delay) {
       clearManagedTimeout(name);
-      const id = setTimeout(() => {
+      const id = window.setTimeout(() => {
         lifecycle.timeouts.delete(name);
-        callback();
+        try { callback(); } catch (err) { console.error("Managed timeout error:", err); }
       }, delay);
       lifecycle.timeouts.set(name, id);
       return id;
     }
-
     function clearManagedTimeout(name) {
       const id = lifecycle.timeouts.get(name);
-      if (id) clearTimeout(id);
+      if (id !== undefined) window.clearTimeout(id);
       lifecycle.timeouts.delete(name);
     }
-
     function cleanupLifecycle() {
-      lifecycle.intervals.forEach((id) => clearInterval(id));
-      lifecycle.timeouts.forEach((id) => clearTimeout(id));
+      lifecycle.intervals.forEach((id) => window.clearInterval(id));
+      lifecycle.timeouts.forEach((id) => window.clearTimeout(id));
       lifecycle.intervals.clear();
       lifecycle.timeouts.clear();
       if (supabaseClient && guardStatusChannel) {
-        supabaseClient.removeChannel(guardStatusChannel);
+        try { supabaseClient.removeChannel(guardStatusChannel); } catch (err) { /* already closing */ }
         guardStatusChannel = null;
       }
+    }
+
+    /* =========================================================
+       SAFE UTILITIES
+       ========================================================= */
+    function safeRandomId(prefix) {
+      const p = prefix || "id";
+      if (window.crypto && typeof window.crypto.randomUUID === "function") {
+        return p + "-" + window.crypto.randomUUID();
+      }
+      if (window.crypto && typeof window.crypto.getRandomValues === "function") {
+        const bytes = new Uint8Array(16);
+        window.crypto.getRandomValues(bytes);
+        return p + "-" + Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+      }
+      throw new Error("المتصفح لا يدعم توليد معرفات آمنة (Web Crypto غير متاح).");
     }
 
     function setText(id, value) {
@@ -997,19 +929,118 @@
       if (el) el.textContent = value;
     }
 
-    function formatTime(value) {
-      if (!value) return "بانتظار أول QR";
-      return new Date(value).toLocaleTimeString("ar-JO", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit"
+    // FIX-E: deferred head scripts may not be ready when boot() runs inline.
+    function waitForLibraries(timeoutMs) {
+      const start = Date.now();
+      return new Promise((resolve) => {
+        (function check() {
+          const okSupabase = !!(window.supabase && typeof window.supabase.createClient === "function");
+          const okQr = !!(window.QRCode && typeof window.QRCode.toCanvas === "function");
+          if (okSupabase && okQr) return resolve(true);
+          if (Date.now() - start > timeoutMs) return resolve(false);
+          window.setTimeout(check, 100);
+        })();
       });
     }
 
-    function setQrDiagnostics(message, errorMessage = "") {
+    function formatTime(value) {
+      if (!value) return "بانتظار أول QR";
+      try {
+        return new Date(value).toLocaleTimeString("ar-JO", {
+          hour: "2-digit", minute: "2-digit", second: "2-digit"
+        });
+      } catch (err) {
+        return "-";
+      }
+    }
+
+    function isHttps() {
+      return window.location.protocol === "https:";
+    }
+
+    function isLocalHost() {
+      const host = window.location.hostname;
+      return host === "localhost" || host === "127.0.0.1" || host === "::1";
+    }
+
+    function liveBaseUrl() {
+      const configured = APP_CONFIG.LIVE_SITE_URL || window.location.origin;
+      if (configured.indexOf("https://") === 0 && configured.indexOf("PASTE_") === -1) {
+        return configured.replace(/\/+$/, "");
+      }
+      return window.location.origin.replace(/\/+$/, "");
+    }
+
+    function isConfigReady() {
+      return Boolean(
+        window.supabase &&
+        APP_CONFIG.SUPABASE_URL &&
+        APP_CONFIG.SUPABASE_URL.indexOf("https://") === 0 &&
+        APP_CONFIG.SUPABASE_URL.indexOf("PASTE_") === -1 &&
+        APP_CONFIG.SUPABASE_ANON_KEY &&
+        APP_CONFIG.SUPABASE_ANON_KEY.length > 20 &&
+        APP_CONFIG.SUPABASE_ANON_KEY.indexOf("PASTE_") === -1
+      );
+    }
+
+    function withTimeout(promise, timeoutMs, label) {
+      let timeoutId = null;
+      const timeout = new Promise((_, reject) => {
+        timeoutId = window.setTimeout(() => reject(new Error(label || "انتهت مهلة الاتصال")), timeoutMs);
+      });
+      return Promise.race([promise, timeout]).finally(() => {
+        if (timeoutId !== null) window.clearTimeout(timeoutId);
+      });
+    }
+
+    function rpcWithTimeout(builderFactory, timeoutMs, label) {
+      const controller = new AbortController();
+      let timeoutId = null;
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = window.setTimeout(() => {
+          try { controller.abort(); } catch (err) { /* already settled */ }
+          reject(new Error(label || "انتهت مهلة الاتصال"));
+        }, timeoutMs);
+      });
+
+      let request;
+      try {
+        request = builderFactory(controller.signal);
+        if (request && typeof request.abortSignal === "function") {
+          request = request.abortSignal(controller.signal);
+        }
+      } catch (err) {
+        if (timeoutId !== null) window.clearTimeout(timeoutId);
+        return Promise.reject(err);
+      }
+
+      return Promise.race([Promise.resolve(request), timeoutPromise]).finally(() => {
+        if (timeoutId !== null) window.clearTimeout(timeoutId);
+      });
+    }
+
+    function normalizeRpcData(data) {
+      let value = data;
+      if (Array.isArray(value)) value = value[0];
+      if (typeof value === "string") {
+        try { value = JSON.parse(value); } catch (err) { return null; }
+      }
+      if (value && typeof value === "object" && value.create_qr_session) {
+        value = value.create_qr_session;
+      }
+      if (typeof value === "string") {
+        try { value = JSON.parse(value); } catch (err) { return null; }
+      }
+      return value;
+    }
+
+    /* =========================================================
+       DIAGNOSTICS
+       ========================================================= */
+    function setQrDiagnostics(message, errorMessage) {
       setText("qrHealthText", message);
       setText("qrLastSuccess", formatTime(qrRuntime.lastSuccessAt));
-      setText("qrRpcMs", qrRuntime.lastRpcMs === null ? "-" : `${qrRuntime.lastRpcMs} ms`);
+      setText("qrRpcMs", qrRuntime.lastRpcMs === null ? "-" : qrRuntime.lastRpcMs + " ms");
       setText("qrRealtimeStatus", qrRuntime.realtimeStatus || "غير متصل");
       setText("qrCacheVersion", CACHE_VERSION.replace("emergency-room-parking-offline-", ""));
       setText("qrLastScan", qrRuntime.lastScanAt ? formatTime(qrRuntime.lastScanAt) : "لم يحدث بعد");
@@ -1021,56 +1052,85 @@
     function recordGateError(source, error) {
       const entry = {
         at: new Date().toISOString(),
-        source,
-        message: error?.message || String(error || "")
+        source: String(source || "unknown"),
+        message: (error && error.message) ? error.message : String(error || "")
       };
       try {
-        const list = JSON.parse(localStorage.getItem(GATE_ERROR_RING_KEY) || "[]");
+        const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.GATE_ERROR_RING) || "[]");
         list.unshift(entry);
-        localStorage.setItem(GATE_ERROR_RING_KEY, JSON.stringify(list.slice(0, 50)));
-      } catch {
-        localStorage.setItem(GATE_ERROR_RING_KEY, JSON.stringify([entry]));
+        localStorage.setItem(STORAGE_KEYS.GATE_ERROR_RING, JSON.stringify(list.slice(0, ERROR_RING_MAX)));
+      } catch (err) {
+        try {
+          localStorage.setItem(STORAGE_KEYS.GATE_ERROR_RING, JSON.stringify([entry]));
+        } catch (innerErr) { /* storage full / disabled */ }
       }
     }
 
-    function queueGateAuditEvent(action, source, error, details = {}) {
-      const message = error?.message || String(error || "");
-      const event = {
-        id: "gate-audit-" + Date.now().toString(36) + "-" + Math.random().toString(16).slice(2),
-        at: new Date().toISOString(),
-        action,
-        source,
-        message,
-        details
-      };
+    /* =========================================================
+       AUDIT QUEUE
+       ========================================================= */
+    function readAuditQueue() {
       try {
-        const queue = JSON.parse(localStorage.getItem(GATE_AUDIT_QUEUE_KEY) || "[]");
-        const duplicate = queue.some((item) => (
-          item.action === action &&
-          item.message === message &&
-          Date.now() - Date.parse(item.at || 0) < 5 * 60 * 1000
-        ));
-        if (!duplicate) {
-          queue.push(event);
-          localStorage.setItem(GATE_AUDIT_QUEUE_KEY, JSON.stringify(queue.slice(-50)));
-        }
-      } catch (queueError) {
-        recordGateError("queueGateAuditEvent", queueError);
+        const raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.GATE_AUDIT_QUEUE) || "[]");
+        return Array.isArray(raw) ? raw : [];
+      } catch (err) {
+        return [];
+      }
+    }
+
+    function writeAuditQueue(queue) {
+      try {
+        localStorage.setItem(STORAGE_KEYS.GATE_AUDIT_QUEUE, JSON.stringify(queue.slice(-AUDIT_QUEUE_MAX)));
+      } catch (error) {
+        recordGateError("writeAuditQueue", error);
+      }
+    }
+
+    function getPendingAuditCount() {
+      return readAuditQueue().length;
+    }
+
+    function queueGateAuditEvent(action, source, error, details) {
+      const message = (error && error.message) ? error.message : String(error || "");
+      const event = {
+        id: safeRandomId("gate-audit"),
+        at: new Date().toISOString(),
+        action: String(action || "UNKNOWN"),
+        source: String(source || "unknown"),
+        message,
+        details: details || {}
+      };
+      const queue = readAuditQueue();
+      const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+      const duplicate = queue.some((item) =>
+        item.action === event.action &&
+        item.message === event.message &&
+        Date.parse(item.at || 0) > fiveMinAgo
+      );
+      if (!duplicate) {
+        queue.push(event);
+        writeAuditQueue(queue);
       }
     }
 
     async function flushGateAuditEvents() {
       if (!supabaseClient || !navigator.onLine) return false;
-      let queue = [];
-      try {
-        queue = JSON.parse(localStorage.getItem(GATE_AUDIT_QUEUE_KEY) || "[]");
-      } catch (error) {
-        recordGateError("readGateAuditQueue", error);
-        return false;
-      }
+
+      const queue = readAuditQueue();
       if (!queue.length) return true;
 
-      const device = getGateDevice();
+      // FIX-B: device read guarded — getGateDevice() can throw without Web Crypto.
+      let device;
+      try {
+        device = getGateDevice();
+      } catch (deviceErr) {
+        recordGateError("flushGateAuditEvents:device", deviceErr);
+        return false;
+      }
+
+      const sentIds = {};
+      queue.forEach((e) => { sentIds[e.id] = true; });
+
       const logs = queue.map((event) => ({
         client_log_id: event.id,
         gate_device_code: device.device_code,
@@ -1079,6 +1139,7 @@
         mobile_number: null,
         full_name: null,
         specialty: null,
+        // FIX-A: audit events reuse DENIED (CHECK-safe). Real semantics stay in payload.event_type.
         result: "DENIED",
         reason: event.action,
         qr_token: null,
@@ -1092,7 +1153,7 @@
       }));
 
       try {
-        const { data, error } = await rpcWithTimeout(
+        const rpcResult = await rpcWithTimeout(
           () => supabaseClient.rpc("sync_offline_access_logs", {
               p_device_code: device.device_code,
               p_logs: logs,
@@ -1101,66 +1162,37 @@
           QR_REQUEST_TIMEOUT_MS,
           "انتهت مهلة إرسال حدث التدقيق"
         );
+        const data = rpcResult && rpcResult.data !== undefined ? rpcResult.data : rpcResult;
+        const rpcError = rpcResult && rpcResult.error !== undefined ? rpcResult.error : null;
         const result = normalizeRpcData(data);
-        if (error || !result || result.ok !== true) {
-          throw new Error(error?.message || result?.message || "تعذر إرسال حدث التدقيق");
+        if (rpcError || !result || result.ok !== true) {
+          throw new Error((rpcError && rpcError.message) || (result && result.message) || "تعذر إرسال حدث التدقيق");
         }
-        localStorage.removeItem(GATE_AUDIT_QUEUE_KEY);
+        const remaining = readAuditQueue().filter((item) => !sentIds[item.id]);
+        writeAuditQueue(remaining);
         return true;
-      } catch (error) {
-        recordGateError("flushGateAuditEvents", error);
+      } catch (err) {
+        recordGateError("flushGateAuditEvents", err);
         return false;
       }
     }
 
-    async function reportHeartbeatIssue(error, options = {}) {
-      const source = options.source || "gateHeartbeat";
-      const action = options.action || "GATE_HEARTBEAT_ERROR";
-      const warning = options.warning || "النظام غير متاح حالياً";
-      recordGateError(source, error);
-      console.error("Gate device heartbeat failed:", error);
-      showSetupWarning(warning, "error");
-      queueGateAuditEvent(action, source, error, {
-        device_code: getGateDevice().device_code,
-        pending_approval: options.pendingApproval === true
-      });
-      await flushGateAuditEvents();
-    }
-
-    function withTimeout(promise, timeoutMs, label) {
-      let timeoutId = null;
-      const timeout = new Promise((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error(label || "انتهت مهلة الاتصال")), timeoutMs);
-      });
-      return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
-    }
-
-    function rpcWithTimeout(builderFactory, timeoutMs, label) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-      let request = builderFactory(controller.signal);
-      if (request && typeof request.abortSignal === "function") {
-        request = request.abortSignal(controller.signal);
-      }
-      return Promise.resolve(request).finally(() => clearTimeout(timeoutId)).catch((error) => {
-        if (controller.signal.aborted) throw new Error(label || "انتهت مهلة الاتصال");
-        throw error;
-      });
-    }
-
+    /* =========================================================
+       QR PERSISTENCE
+       ========================================================= */
     function extractTokenFromUrl(value) {
       try {
         const url = new URL(value, window.location.href);
         return url.searchParams.get("token") || "";
-      } catch {
+      } catch (err) {
         return "";
       }
     }
 
     function saveLastValidQr(qr) {
-      if (!qr?.url || qr.secure !== true) return;
+      if (!qr || !qr.url || qr.secure !== true) return;
       try {
-        localStorage.setItem(LAST_VALID_QR_STORAGE_KEY, JSON.stringify(qr));
+        localStorage.setItem(STORAGE_KEYS.LAST_VALID_QR, JSON.stringify(qr));
       } catch (error) {
         recordGateError("saveLastValidQr", error);
       }
@@ -1168,14 +1200,14 @@
 
     function loadLastValidQr() {
       try {
-        const qr = JSON.parse(localStorage.getItem(LAST_VALID_QR_STORAGE_KEY) || "null");
-        if (!qr?.url || qr.secure !== true) return null;
-        if (qr.expiresAt && Date.now() > Number(qr.expiresAt)) {
-          localStorage.removeItem(LAST_VALID_QR_STORAGE_KEY);
+        const qr = JSON.parse(localStorage.getItem(STORAGE_KEYS.LAST_VALID_QR) || "null");
+        if (!qr || !qr.url || qr.secure !== true) return null;
+        if (qr.expiresAt && Number.isFinite(Number(qr.expiresAt)) && Date.now() > Number(qr.expiresAt)) {
+          localStorage.removeItem(STORAGE_KEYS.LAST_VALID_QR);
           return null;
         }
         return qr;
-      } catch {
+      } catch (err) {
         return null;
       }
     }
@@ -1183,127 +1215,211 @@
     async function restoreLastValidQr() {
       const saved = loadLastValidQr();
       if (!saved) return false;
+
       lastValidQr = saved;
       currentQrUrl = saved.url;
-      const remaining = saved.expiresAt
-        ? Math.floor((Number(saved.expiresAt) - Date.now()) / 1000)
-        : QR_REFRESH_SECONDS;
-      qrTimer = remaining;
+
+      let remaining = QR_REFRESH_SECONDS;
+      if (saved.expiresAt && Number.isFinite(Number(saved.expiresAt))) {
+        remaining = Math.floor((Number(saved.expiresAt) - Date.now()) / 1000);
+      }
+      if (!Number.isFinite(remaining) || remaining <= 0) remaining = QR_REFRESH_SECONDS;
+      qrTimer = Math.min(remaining, QR_REFRESH_SECONDS);
+      updateCountdownDisplay();
+
       await drawQr(saved.url, {
         token: saved.token,
         expiresAt: saved.expiresAt,
-        secure: true
+        secure: true,
+        skipPersist: true
       });
       setQrDiagnostics("تم استرجاع آخر QR صالح");
       return true;
     }
 
     function nextQrRetrySeconds() {
-      const index = Math.min(qrRuntime.consecutiveFailures, QR_RETRY_BACKOFF_SECONDS.length - 1);
-      return QR_RETRY_BACKOFF_SECONDS[index];
+      const idx = Math.min(qrRuntime.consecutiveFailures, QR_RETRY_BACKOFF_SECONDS.length - 1);
+      return QR_RETRY_BACKOFF_SECONDS[idx];
     }
 
-    function isConfigReady() {
-      return (
-        window.supabase &&
-        APP_CONFIG.SUPABASE_URL &&
-        APP_CONFIG.SUPABASE_URL.startsWith("https://") &&
-        !APP_CONFIG.SUPABASE_URL.includes("PASTE_") &&
-        APP_CONFIG.SUPABASE_ANON_KEY &&
-        APP_CONFIG.SUPABASE_ANON_KEY.length > 20 &&
-        !APP_CONFIG.SUPABASE_ANON_KEY.includes("PASTE_")
-      );
-    }
-
-    function liveBaseUrl() {
-      if (
-        APP_CONFIG.LIVE_SITE_URL &&
-        APP_CONFIG.LIVE_SITE_URL.startsWith("https://") &&
-        !APP_CONFIG.LIVE_SITE_URL.includes("PASTE_")
-      ) {
-        return APP_CONFIG.LIVE_SITE_URL.replace(/\/+$/, "");
-      }
-      return window.location.origin;
-    }
-
-    function showSetupWarning(message, type = "warning") {
+    /* =========================================================
+       UI HELPERS
+       ========================================================= */
+    function showSetupWarning(message, type) {
       const el = $("setupWarning");
+      if (!el) return;
       el.textContent = message;
       el.className = "notice";
       if (type === "error") el.classList.add("error");
-      if (type === "ok") el.classList.add("ok");
+      else if (type === "ok") el.classList.add("ok");
       el.classList.remove("hidden");
     }
+    function hideSetupWarning() {
+      const el = $("setupWarning");
+      if (el) el.classList.add("hidden");
+    }
 
-    function setConnection(text, type = "ready") {
+    function setConnection(text, type) {
       const badge = $("connectionBadge");
+      if (!badge) return;
       badge.textContent = text;
       badge.className = "pill";
       if (type === "ready") badge.classList.add("ready");
-      if (type === "error") badge.classList.add("error");
+      else if (type === "error") badge.classList.add("error");
+      else if (type === "warn") badge.classList.add("warn");
     }
 
+    function updateCountdownDisplay() {
+      const el = $("qrCountdown");
+      if (!el) return;
+      el.textContent = String(Math.max(0, qrTimer));
+      el.classList.remove("warn", "danger");
+      if (qrTimer <= 5) el.classList.add("danger");
+      else if (qrTimer <= 10) el.classList.add("warn");
+    }
+
+    function setViolationMessage(message, type) {
+      const el = $("violationResult");
+      if (!el) return;
+      el.textContent = message;
+      el.className = "notice";
+      if (type === "error") el.classList.add("error");
+      else if (type === "ok") el.classList.add("ok");
+      el.classList.remove("hidden");
+    }
+
+    /* =========================================================
+       GATE DEVICE IDENTITY
+       ========================================================= */
     function getGateDevice() {
       let device = null;
-      try { device = JSON.parse(localStorage.getItem(GATE_DEVICE_STORAGE_KEY) || "null"); } catch { device = null; }
-      if (device?.device_code) return device;
+      try {
+        device = JSON.parse(localStorage.getItem(STORAGE_KEYS.GATE_DEVICE) || "null");
+      } catch (err) { device = null; }
+
+      if (device && device.device_code && device.gate_name) return device;
+
       device = {
-        device_code: "gate-" + Math.random().toString(16).slice(2) + "-" + Date.now().toString(36),
+        device_code: safeRandomId("gate"),
         gate_name: "Emergency Room Gate",
         cache_version: CACHE_VERSION,
         created_at: new Date().toISOString()
       };
-      localStorage.setItem(GATE_DEVICE_STORAGE_KEY, JSON.stringify(device));
+      try {
+        localStorage.setItem(STORAGE_KEYS.GATE_DEVICE, JSON.stringify(device));
+      } catch (error) {
+        recordGateError("saveGateDevice", error);
+      }
       return device;
     }
 
     function getOfflineDeviceToken() {
-      let token = localStorage.getItem(OFFLINE_DEVICE_TOKEN_STORAGE_KEY) || "";
-      if (token) return token;
+      let token = null;
+      try {
+        token = localStorage.getItem(STORAGE_KEYS.OFFLINE_DEVICE_TOKEN);
+      } catch (err) { token = null; }
+
+      if (token && token.length >= 32) return token;
+
+      if (!window.crypto || typeof window.crypto.getRandomValues !== "function") {
+        throw new Error("المتصفح لا يدعم توليد توكن آمن (Web Crypto غير متاح).");
+      }
       const bytes = new Uint8Array(48);
-      crypto.getRandomValues(bytes);
+      window.crypto.getRandomValues(bytes);
       token = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-      localStorage.setItem(OFFLINE_DEVICE_TOKEN_STORAGE_KEY, token);
+      try {
+        localStorage.setItem(STORAGE_KEYS.OFFLINE_DEVICE_TOKEN, token);
+      } catch (error) {
+        recordGateError("saveOfflineDeviceToken", error);
+      }
       return token;
+    }
+
+    /* =========================================================
+       HEARTBEAT
+       ========================================================= */
+    async function reportHeartbeatIssue(error, options) {
+      const opts = options || {};
+      const source = opts.source || "gateHeartbeat";
+      const action = opts.action || "GATE_HEARTBEAT_ERROR";
+      const warning = opts.warning || "النظام غير متاح حالياً";
+
+      recordGateError(source, error);
+      console.error("Gate device heartbeat failed:", error);
+      showSetupWarning(warning, "error");
+
+      try {
+        queueGateAuditEvent(action, source, error, {
+          device_code: getGateDevice().device_code,
+          pending_approval: opts.pendingApproval === true
+        });
+      } catch (auditErr) {
+        recordGateError("queueGateAuditEvent", auditErr);
+      }
+      await flushGateAuditEvents();
     }
 
     async function syncGateDeviceHeartbeat() {
       const device = getGateDevice();
+
       if (!supabaseClient || !navigator.onLine) {
         const error = new Error("النظام غير متاح حالياً");
         qrRuntime.gateDeviceApproved = false;
         qrRuntime.heartbeatLastError = error.message;
+        qrRuntime.lastDeviceState = "offline";
         await reportHeartbeatIssue(error, { source: "gateHeartbeatUnavailable" });
         return { approved: false, error };
       }
+
+      let deviceToken;
+      try {
+        deviceToken = getOfflineDeviceToken();
+      } catch (tokenErr) {
+        qrRuntime.gateDeviceApproved = false;
+        qrRuntime.heartbeatLastError = tokenErr.message;
+        qrRuntime.lastDeviceState = "rejected";
+        await reportHeartbeatIssue(tokenErr, {
+          source: "gateHeartbeatTokenError",
+          action: "GATE_DEVICE_TOKEN_ERROR"
+        });
+        return { approved: false, error: tokenErr };
+      }
+
       const payload = {
         p_device_code: device.device_code,
         p_gate_name: device.gate_name,
         p_cache_version: CACHE_VERSION,
         p_user_agent: navigator.userAgent,
-        p_pending_count: 0,
-        p_device_token: getOfflineDeviceToken(),
+        p_pending_count: getPendingAuditCount(),
+        p_device_token: deviceToken,
         p_app_version: APP_VERSION,
         p_last_qr_at: qrRuntime.lastSuccessAt ? new Date(qrRuntime.lastSuccessAt).toISOString() : null,
         p_last_scan_at: qrRuntime.lastScanAt ? new Date(qrRuntime.lastScanAt).toISOString() : null
       };
+
       try {
         const heartbeatResult = await rpcWithTimeout(
           () => supabaseClient.rpc("upsert_gate_device_heartbeat", payload),
           QR_REQUEST_TIMEOUT_MS,
           "انتهت مهلة تحديث نبض جهاز الحارس"
         );
-        if (heartbeatResult?.error) throw heartbeatResult.error;
-        const result = normalizeRpcData(heartbeatResult?.data);
+        if (heartbeatResult && heartbeatResult.error) throw heartbeatResult.error;
+
+        const result = normalizeRpcData(heartbeatResult && heartbeatResult.data);
+
         if (!result || result.ok !== true || result.pending_approval === true) {
-          const pendingApproval = result?.pending_approval === true;
+          const pendingApproval = !!(result && result.pending_approval === true);
           const error = new Error(
-            result?.message || (pendingApproval ? "جهاز الحارس بانتظار اعتماد الإدارة" : "تعذر اعتماد جهاز الحارس")
+            (result && result.message) ||
+            (pendingApproval ? "جهاز الحارس بانتظار اعتماد الإدارة" : "تعذر اعتماد جهاز الحارس")
           );
           error.code = pendingApproval ? "GATE_NOT_APPROVED" : "GATE_HEARTBEAT_REJECTED";
           error.heartbeatReported = true;
+
           qrRuntime.gateDeviceApproved = false;
           qrRuntime.heartbeatLastError = error.message;
+          qrRuntime.lastDeviceState = pendingApproval ? "pending" : "rejected";
+
           await reportHeartbeatIssue(error, {
             source: "gateHeartbeatRejected",
             action: pendingApproval ? "GATE_DEVICE_NOT_APPROVED" : "GATE_HEARTBEAT_REJECTED",
@@ -1316,90 +1432,100 @@
         qrRuntime.gateDeviceApproved = true;
         qrRuntime.heartbeatVerifiedAt = Date.now();
         qrRuntime.heartbeatLastError = "";
+        qrRuntime.lastDeviceState = "approved";
+
         await flushGateAuditEvents();
         return { approved: true, result };
       } catch (err) {
         err.heartbeatReported = true;
         qrRuntime.gateDeviceApproved = false;
-        qrRuntime.heartbeatLastError = err.message || String(err);
+        qrRuntime.heartbeatLastError = (err && err.message) || String(err);
+        qrRuntime.lastDeviceState = "rejected";
         await reportHeartbeatIssue(err);
         return { approved: false, error: err };
       }
     }
 
+    /* =========================================================
+       NETWORK STATE
+       ========================================================= */
     async function updateNetworkState() {
-      if (!navigator.onLine) {
+      const nowOnline = navigator.onLine;
+
+      if (!nowOnline) {
+        qrRuntime.wasOnline = false;
         setConnection("Offline Gate Mode", "error");
         setQrDiagnostics("الشبكة منقطعة", "النظام غير متاح حالياً");
         showSetupWarning("النظام غير متاح حالياً", "error");
         return;
       }
+
       if (supabaseClient) setConnection("Supabase جاهز", "ready");
       setQrDiagnostics("الشبكة متصلة");
-      await refreshQrNow();
+
+      if (!qrRuntime.wasOnline) {
+        qrRuntime.wasOnline = true;
+        await refreshQrNow();
+      } else {
+        qrRuntime.wasOnline = true;
+      }
     }
 
+    /* =========================================================
+       SUPABASE INIT
+       ========================================================= */
     function initSupabase() {
-      $("appTitle").textContent = APP_CONFIG.APP_NAME || "ALBASHIR EMERGENCY HOSPITAL";
+      const titleEl = $("appTitle");
+      if (titleEl) titleEl.textContent = APP_CONFIG.APP_NAME;
+
+      if (!isHttps() && !isLocalHost()) {
+        showSetupWarning("يجب تشغيل هذه الشاشة عبر HTTPS لضمان أمان جلسات QR.", "error");
+        setConnection("غير آمن (HTTP)", "error");
+      }
 
       if (!isConfigReady()) {
         setConnection("Supabase غير مفعّل", "error");
         showSetupWarning("النظام غير متاح حالياً", "error");
-        return;
+        return false;
       }
 
-      supabaseClient = supabase.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY);
-      setConnection("Supabase جاهز", "ready");
+      try {
+        supabaseClient = window.supabase.createClient(
+          APP_CONFIG.SUPABASE_URL,
+          APP_CONFIG.SUPABASE_ANON_KEY,
+          {
+            auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+            realtime: { params: { eventsPerSecond: 5 } },
+            global: { headers: { "x-application-name": "albashir-gate-guard" } }
+          }
+        );
+        setConnection("Supabase جاهز", "ready");
+        return true;
+      } catch (err) {
+        recordGateError("initSupabase", err);
+        setConnection("فشل إعداد Supabase", "error");
+        showSetupWarning("تعذر تهيئة الاتصال بالخادم.", "error");
+        return false;
+      }
     }
 
-    function hideSetupWarning() {
-      const el = $("setupWarning");
-      if (el) el.classList.add("hidden");
-    }
-
-    function normalizeRpcData(data) {
-      let value = data;
-
-      if (Array.isArray(value)) {
-        value = value[0];
-      }
-
-      if (typeof value === "string") {
-        try {
-          value = JSON.parse(value);
-        } catch {
-          return null;
-        }
-      }
-
-      if (value && value.create_qr_session) {
-        value = value.create_qr_session;
-      }
-
-      if (typeof value === "string") {
-        try {
-          value = JSON.parse(value);
-        } catch {
-          return null;
-        }
-      }
-
-      return value;
-    }
-
-    async function drawQr(url, options = {}) {
+    /* =========================================================
+       QR DRAWING
+       ========================================================= */
+    async function drawQr(url, options) {
+      const opts = options || {};
       const link = $("qrLink");
       const img = $("qrImage");
       const canvas = $("qrCanvas");
 
       try {
-        const secureToken = options.token || extractTokenFromUrl(url);
-        if (options.secure !== true || !secureToken) {
+        const secureToken = opts.token || extractTokenFromUrl(url);
+        if (opts.secure !== true || !secureToken) {
           throw new Error("رفض رسم QR غير صادر من جلسة Supabase معتمدة");
         }
         if (!canvas) throw new Error("QR canvas is missing");
         if (!window.QRCode || typeof window.QRCode.toCanvas !== "function") {
-          throw new Error("Local QR library did not load");
+          throw new Error("مكتبة QR المحلية لم تُحمَّل");
         }
 
         if (img) {
@@ -1410,58 +1536,55 @@
         }
 
         const nextCanvas = document.createElement("canvas");
+        // FIX-G: render at display size (330px) to avoid scaling blur.
         await window.QRCode.toCanvas(nextCanvas, url, {
-          width: 320,
+          width: 330,
           margin: 2,
           errorCorrectionLevel: "M",
-          color: {
-            dark: "#000000",
-            light: "#ffffff"
-          }
+          color: { dark: "#000000", light: "#ffffff" }
         });
 
         canvas.width = nextCanvas.width;
         canvas.height = nextCanvas.height;
-        const context = canvas.getContext("2d");
-        context.clearRect(0, 0, canvas.width, canvas.height);
-        context.drawImage(nextCanvas, 0, 0);
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(nextCanvas, 0, 0);
         canvas.classList.remove("hidden");
         canvas.setAttribute("aria-label", "QR Code");
 
-        link.href = url;
-        link.textContent = url;
+        if (link) {
+          link.href = url;
+          link.textContent = url;
+        }
         currentQrUrl = url;
         lastValidQr = {
           url,
           token: secureToken,
           createdAt: Date.now(),
-          expiresAt: options.expiresAt || null,
-          secure: options.secure === true
+          expiresAt: opts.expiresAt || null,
+          secure: true
         };
-        saveLastValidQr(lastValidQr);
+        if (!opts.skipPersist) saveLastValidQr(lastValidQr);
         hideSetupWarning();
-        return;
+        return true;
       } catch (localQrError) {
         console.error("Local QR rendering failed:", localQrError);
         recordGateError("drawQr", localQrError);
 
         if (img) img.classList.add("hidden");
-        if (lastValidQr.url) {
+        if (lastValidQr.url && link) {
           link.href = lastValidQr.url;
           link.textContent = lastValidQr.url;
           currentQrUrl = lastValidQr.url;
         }
-
-        showSetupWarning(
-          "تعذر رسم QR محليًا. تم الاحتفاظ بآخر QR ظاهر، وسيعاد المحاولة تلقائيًا.",
-          "error"
-        );
-
+        showSetupWarning("تعذر رسم QR محليًا. تم الاحتفاظ بآخر QR ظاهر، وسيعاد المحاولة تلقائيًا.", "error");
         throw localQrError;
       }
     }
 
-
+    /* =========================================================
+       QR REFRESH
+       ========================================================= */
     async function refreshQrNow() {
       if (qrRuntime.refreshing) {
         setQrDiagnostics("طلب QR قيد التنفيذ");
@@ -1470,23 +1593,24 @@
 
       qrRuntime.refreshing = true;
       qrRuntime.attempts += 1;
+      qrRuntime.lastAttemptAt = Date.now();
       qrTimer = QR_REFRESH_SECONDS;
-      $("qrCountdown").textContent = qrTimer;
+      updateCountdownDisplay();
       setQrDiagnostics("تحديث QR الآن");
 
-      try {
-        if (!supabaseClient) {
-          throw new Error("لم يتم إعداد Supabase. لا يمكن إنشاء QR آمن.");
-        }
+      const refreshBtn = $("refreshQrButton");
+      if (refreshBtn) refreshBtn.disabled = true;
 
-        if (!navigator.onLine) {
-          throw new Error("النظام غير متاح حالياً");
-        }
+      try {
+        if (!supabaseClient) throw new Error("لم يتم إعداد Supabase. لا يمكن إنشاء QR آمن.");
+        if (!navigator.onLine) throw new Error("النظام غير متاح حالياً");
 
         const gateState = await syncGateDeviceHeartbeat();
         if (!gateState.approved) {
           const gateError = gateState.error || new Error("تعذر اعتماد جهاز الحارس");
-          gateError.code = gateState.pendingApproval ? "GATE_NOT_APPROVED" : (gateError.code || "GATE_HEARTBEAT_REJECTED");
+          gateError.code = gateState.pendingApproval
+            ? "GATE_NOT_APPROVED"
+            : (gateError.code || "GATE_HEARTBEAT_REJECTED");
           gateError.heartbeatReported = true;
           throw gateError;
         }
@@ -1497,39 +1621,48 @@
           p_device_code: gateDevice.device_code,
           p_device_token: getOfflineDeviceToken()
         };
-        const { data, error } = await rpcWithTimeout(
+
+        const rpcResponse = await rpcWithTimeout(
           () => supabaseClient.rpc("create_qr_session", qrSessionPayload),
           QR_REQUEST_TIMEOUT_MS,
           "انتهت مهلة إنشاء QR من Supabase"
         );
         qrRuntime.lastRpcMs = Math.round(performance.now() - rpcStartedAt);
-        const result = normalizeRpcData(data);
-        console.log("[QR DEBUG] create_qr_session response:", { data, result, error });
 
-        if (error) {
-          throw new Error(error.message || JSON.stringify(error));
+        const rpcError = rpcResponse && rpcResponse.error !== undefined ? rpcResponse.error : null;
+        const rpcData = rpcResponse && rpcResponse.data !== undefined ? rpcResponse.data : rpcResponse;
+        const result = normalizeRpcData(rpcData);
+
+        // SECURITY: Never log the token. Only metadata, and only if debug is explicitly enabled.
+        if (window.__ALBASHIR_DEBUG__ === true) {
+          console.debug("[QR] create_qr_session", {
+            ok: result && result.ok === true,
+            expires_in_seconds: (result && result.expires_in_seconds) || null,
+            error: (rpcError && rpcError.message) || null
+          });
         }
 
+        if (rpcError) throw new Error(rpcError.message || "خطأ غير معروف من Supabase");
+
         if (!result || result.ok !== true || !result.token) {
-          const responseError = new Error(result?.message || "استجابة QR غير متوقعة من Supabase");
-          if (result?.pending_approval === true) responseError.code = "GATE_NOT_APPROVED";
+          const responseError = new Error((result && result.message) || "استجابة QR غير متوقعة من Supabase");
+          if (result && result.pending_approval === true) responseError.code = "GATE_NOT_APPROVED";
           throw responseError;
         }
 
-        const verifyUrl = new URL(APP_CONFIG.VERIFY_PATH || "/verify.html", liveBaseUrl());
-        verifyUrl.searchParams.set("token", result.token);
         const expiresInSeconds = Number(result.expires_in_seconds);
         if (!Number.isFinite(expiresInSeconds) || expiresInSeconds <= 0) {
           throw new Error("استجابة انتهاء QR غير صالحة من Supabase");
         }
+
+        const verifyUrl = new URL(APP_CONFIG.VERIFY_PATH || "./verify.html", liveBaseUrl());
+        verifyUrl.searchParams.set("token", result.token);
+
         const expiresAt = Date.now() + expiresInSeconds * 1000;
-        await drawQr(verifyUrl.toString(), {
-          secure: true,
-          token: result.token,
-          expiresAt
-        });
+        await drawQr(verifyUrl.toString(), { secure: true, token: result.token, expiresAt });
+
         qrTimer = expiresInSeconds;
-        $("qrCountdown").textContent = qrTimer;
+        updateCountdownDisplay();
 
         qrRuntime.lastSecureUrl = verifyUrl.toString();
         qrRuntime.lastSuccessAt = Date.now();
@@ -1539,33 +1672,44 @@
         setQrDiagnostics("QR آمن ومحدث");
         hideSetupWarning();
       } catch (err) {
-        const message = err.message || String(err);
+        const message = (err && err.message) ? err.message : String(err);
         console.error("QR refresh failed:", err);
+
         if (!err.heartbeatReported) {
           recordGateError("refreshQrNow", err);
-          queueGateAuditEvent("GATE_QR_REFRESH_ERROR", "refreshQrNow", err, {
-            device_code: getGateDevice().device_code
-          });
+          try {
+            queueGateAuditEvent("GATE_QR_REFRESH_ERROR", "refreshQrNow", err, {
+              device_code: getGateDevice().device_code
+            });
+          } catch (auditErr) {
+            recordGateError("queueGateAuditEvent", auditErr);
+          }
           await flushGateAuditEvents();
         }
+
         qrRuntime.consecutiveFailures += 1;
         qrRuntime.lastError = message;
-        qrTimer = nextQrRetrySeconds();
-        $("qrCountdown").textContent = qrTimer;
-        const warning = err.code === "GATE_NOT_APPROVED"
-          ? message
-          : "النظام غير متاح حالياً";
-        setConnection(err.code === "GATE_NOT_APPROVED" ? "الجهاز غير معتمد" : "النظام غير متاح", "error");
+        const isNotApproved = err.code === "GATE_NOT_APPROVED";
+        // FIX-C: pending device waits for next heartbeat instead of hammering QR.
+        qrTimer = isNotApproved ? NOT_APPROVED_RETRY_SECONDS : nextQrRetrySeconds();
+        updateCountdownDisplay();
+
+        const warning = isNotApproved ? message : "النظام غير متاح حالياً";
+
+        setConnection(isNotApproved ? "الجهاز غير معتمد" : "النظام غير متاح", "error");
         setQrDiagnostics("توقف إنشاء QR", message);
         showSetupWarning(warning, "error");
       } finally {
         qrRuntime.refreshing = false;
+        if (refreshBtn) refreshBtn.disabled = false;
       }
     }
 
+    /* =========================================================
+       QR LOOPS
+       ========================================================= */
     function startQrLoop() {
       clearManagedInterval("qrCountdown");
-
       refreshQrNow();
 
       setManagedInterval("qrCountdown", () => {
@@ -1574,7 +1718,7 @@
           qrTimer = QR_REFRESH_SECONDS;
           refreshQrNow();
         }
-        $("qrCountdown").textContent = qrTimer;
+        updateCountdownDisplay();
       }, 1000);
     }
 
@@ -1582,9 +1726,12 @@
       setManagedInterval("qrWatchdog", () => {
         if (!supabaseClient || !navigator.onLine || qrRuntime.refreshing) return;
         if (!qrRuntime.lastSuccessAt) return;
+        // Respect backoff: if we are already in a failure loop, let it recover naturally.
+        if (qrRuntime.consecutiveFailures > 0) return;
+
         const secondsSinceSuccess = Math.floor((Date.now() - qrRuntime.lastSuccessAt) / 1000);
         if (secondsSinceSuccess > QR_WATCHDOG_SECONDS) {
-          qrRuntime.lastError = `آخر QR ناجح قبل ${secondsSinceSuccess} ثانية`;
+          qrRuntime.lastError = "آخر QR ناجح قبل " + secondsSinceSuccess + " ثانية";
           setConnection("QR يحتاج فحص", "error");
           setQrDiagnostics("Watchdog: تأخر تحديث QR", qrRuntime.lastError);
           refreshQrNow();
@@ -1592,11 +1739,15 @@
       }, 15000);
     }
 
-    function classifyEmployee(employee = {}) {
-      if (employee.classification) return employee.classification;
-      const job = String(employee.job_type || employee.employee_type || "").trim();
-      const specialty = String(employee.specialty || "").trim();
-      const text = `${job} ${specialty}`;
+    /* =========================================================
+       EMPLOYEE CLASSIFICATION
+       ========================================================= */
+    function classifyEmployee(employee) {
+      const emp = employee || {};
+      if (emp.classification) return String(emp.classification);
+      const job = String(emp.job_type || emp.employee_type || "").trim();
+      const specialty = String(emp.specialty || "").trim();
+      const text = job + " " + specialty;
       if (/مقيم/.test(text)) return "مقيم";
       if (/تمريض|ممرض|ممرضة/.test(text)) return "ممرض";
       if (/طب عام/.test(text)) return "طبيب عام";
@@ -1608,87 +1759,154 @@
       return job || specialty || "-";
     }
 
+    /* =========================================================
+       GUARD EMPLOYEE LOOKUP
+       ========================================================= */
     async function fetchGuardEmployee(employeeId) {
       if (!supabaseClient || !employeeId) return null;
       try {
-        const { data, error } = await supabaseClient.rpc("get_guard_employee_result", {
-          p_employee_id: employeeId
-        });
-        if (error) return null;
-        return normalizeRpcData(data) || data || null;
-      } catch {
+        const device = getGateDevice();
+        const lookup = await rpcWithTimeout(
+          () => supabaseClient.rpc("get_guard_employee_result", {
+            p_employee_id: employeeId,
+            p_device_code: device.device_code,
+            p_device_token: getOfflineDeviceToken()
+          }),
+          QR_REQUEST_TIMEOUT_MS,
+          "انتهت مهلة جلب بيانات الموظف"
+        );
+        const lookupError = lookup && lookup.error !== undefined ? lookup.error : null;
+        const lookupData = lookup && lookup.data !== undefined ? lookup.data : lookup;
+        if (lookupError) return null;
+        return normalizeRpcData(lookupData) || lookupData || null;
+      } catch (err) {
         return null;
       }
     }
 
-    function setDecision(status, message, employeeName, employeeId, employee = null) {
+    /* =========================================================
+       DECISION RENDERING
+       ========================================================= */
+    function setDecision(status, message, employeeName, employeeId, employee) {
       const panel = $("decisionPanel");
-      panel.className = "panel decision-panel";
+      if (!panel) return;
+
+      const normalized = (status === "ALLOWED" || status === "DENIED" || status === "LIMITED")
+        ? status
+        : "READY";
 
       let title = "الكود جاهز للمسح";
       let icon = "◆";
       let css = "ready";
 
-      if (status === "ALLOWED") {
-        title = "مسموح بالدخول";
-        icon = "✓";
-        css = "allowed";
-      } else if (status === "DENIED") {
-        title = "غير مسموح";
-        icon = "×";
-        css = "denied";
-      } else if (status === "LIMITED") {
-        title = "مسموح جزئيًا";
-        icon = "!";
-        css = "limited";
-      }
+      if (normalized === "ALLOWED") { title = "مسموح بالدخول"; icon = "✓"; css = "allowed"; }
+      else if (normalized === "DENIED") { title = "غير مسموح"; icon = "×"; css = "denied"; }
+      else if (normalized === "LIMITED") { title = "مسموح جزئيًا"; icon = "!"; css = "limited"; }
 
+      panel.classList.remove("ready", "allowed", "denied", "limited");
       panel.classList.add(css);
-      $("statusIcon").textContent = icon;
-      $("decisionTitle").textContent = title;
-      $("decisionMessage").textContent = message || "تظهر هنا نتيجة المسح.";
-      $("employeeLine").textContent =
-        employeeName || employeeId
-          ? `الموظف: ${employeeName || ""}${employeeId ? " — " + employeeId : ""}`
-          : "";
+
+      const iconEl = $("statusIcon");
+      if (iconEl) iconEl.textContent = icon;
+
+      setText("decisionTitle", title);
+      setText("decisionMessage", message || "تظهر هنا نتيجة المسح.");
+
+      const empLine = (employeeName || employeeId)
+        ? "الموظف: " + (employeeName || "") + (employeeId ? " — " + employeeId : "")
+        : "";
+      setText("employeeLine", empLine);
+
       const displayEmployee = employee || {};
       const displayName = displayEmployee.full_name || employeeName || "-";
       const displayId = displayEmployee.employee_id || employeeId || "-";
       const displayDepartment = displayEmployee.department || displayEmployee.specialty || "-";
-      const displayPhoto = displayEmployee.photo_url || "./logo.jpeg";
+      // FIX-F: photo URL allowlist — DB value could be untrusted. Fallback to logo otherwise.
+      const rawPhoto = String(displayEmployee.photo_url || "./logo.jpeg");
+      const displayPhoto = /^(https:\/\/|data:image\/|blob:|\.\/|\/)/i.test(rawPhoto) ? rawPhoto : "./logo.jpeg";
 
-      $("scanPhoto").src = displayPhoto;
-      $("scanName").textContent = displayName;
-      $("scanEmployeeId").textContent = displayId;
-      $("scanDepartment").textContent = displayDepartment;
-      $("scanClassification").textContent = classifyEmployee(displayEmployee);
-      $("scanTime").textContent = new Date().toLocaleTimeString("ar-JO", {
-        hour: "2-digit",
-        minute: "2-digit"
-      });
-      $("lastScanAge").textContent = status === "READY" ? "بانتظار المسح" : "منذ لحظات";
-      if (status !== "READY") {
+      const photoEl = $("scanPhoto");
+      if (photoEl) {
+        photoEl.onerror = () => { photoEl.onerror = null; photoEl.src = "./logo.jpeg"; };
+        photoEl.src = displayPhoto;
+      }
+
+      setText("scanName", displayName);
+      setText("scanEmployeeId", displayId);
+      setText("scanDepartment", displayDepartment);
+      setText("scanClassification", classifyEmployee(displayEmployee));
+
+      setText("scanTime", new Date().toLocaleTimeString("ar-JO", {
+        hour: "2-digit", minute: "2-digit"
+      }));
+
+      const ageEl = $("lastScanAge");
+      if (ageEl) {
+        ageEl.textContent = normalized === "READY" ? "بانتظار المسح" : "منذ لحظات";
+        ageEl.className = "pill " + (normalized === "DENIED" ? "error" : normalized === "LIMITED" ? "warn" : "ready");
+      }
+
+      if (normalized !== "READY") {
         qrRuntime.lastScanAt = Date.now();
         setQrDiagnostics("تم استقبال نتيجة Scan");
       }
     }
 
+    function resetScanDetails() {
+      const photoEl = $("scanPhoto");
+      if (photoEl) photoEl.src = "./logo.jpeg";
+      setText("scanName", "-");
+      setText("scanEmployeeId", "-");
+      setText("scanDepartment", "-");
+      setText("scanClassification", "-");
+      setText("scanTime", "-");
+      setText("employeeLine", "");
+    }
+
+    function startScanAgeTimer() {
+      setManagedInterval("lastScanAge", () => {
+        const el = $("lastScanAge");
+        if (!el) return;
+        if (!qrRuntime.lastScanAt) {
+          el.textContent = "بانتظار المسح";
+          el.className = "pill ready";
+          return;
+        }
+        const sec = Math.floor((Date.now() - qrRuntime.lastScanAt) / 1000);
+        if (sec < 5) el.textContent = "الآن";
+        else if (sec < 60) el.textContent = "منذ " + sec + " ثانية";
+        else if (sec < 3600) el.textContent = "منذ " + Math.floor(sec / 60) + " دقيقة";
+        else el.textContent = "منذ " + Math.floor(sec / 3600) + " ساعة";
+      }, 1000);
+    }
+
     async function resetGuardDisplaySoon() {
       setManagedTimeout("resetGuardDisplay", async () => {
         setDecision("READY", "QR جديد جاهز للمسح.", "", "");
+        resetScanDetails();
 
         if (supabaseClient) {
           try {
-            await supabaseClient.rpc("reset_guard_screen");
+            const device = getGateDevice();
+            await rpcWithTimeout(
+              () => supabaseClient.rpc("reset_guard_screen", {
+                p_device_code: device.device_code,
+                p_device_token: getOfflineDeviceToken()
+              }),
+              QR_REQUEST_TIMEOUT_MS,
+              "انتهت مهلة تصفير شاشة الحارس"
+            );
           } catch (err) {
             console.warn("Reset RPC failed:", err);
           }
         }
-
         await refreshQrNow();
-      }, 6000);
+      }, RESET_GUARD_DISPLAY_MS);
     }
 
+    /* =========================================================
+       GUARD STATUS
+       ========================================================= */
     async function processGuardStatusRow(row) {
       if (!row || row.current_status === "READY") return;
 
@@ -1704,14 +1922,7 @@
       lastGuardStatusFingerprint = fingerprint;
 
       const employee = await fetchGuardEmployee(row.employee_id);
-      setDecision(
-        row.current_status,
-        row.message,
-        row.employee_name,
-        row.employee_id,
-        employee
-      );
-
+      setDecision(row.current_status, row.message, row.employee_name, row.employee_id, employee);
       resetGuardDisplaySoon();
     }
 
@@ -1720,16 +1931,14 @@
       if (qrRuntime.realtimeStatus === "SUBSCRIBED") return;
 
       try {
-        const { data, error } = await withTimeout(
-          supabaseClient
-            .from("guard_screen_status")
-            .select("*")
-            .eq("id", 1)
-            .maybeSingle(),
+        const pollResult = await withTimeout(
+          supabaseClient.from("guard_screen_status").select("*").eq("id", 1).maybeSingle(),
           5000,
           "انتهت مهلة فحص حالة شاشة الحارس"
         );
-        if (error) throw error;
+        const data = pollResult && pollResult.data !== undefined ? pollResult.data : pollResult;
+        const pollError = pollResult && pollResult.error !== undefined ? pollResult.error : null;
+        if (pollError) throw pollError;
         await processGuardStatusRow(data);
       } catch (error) {
         recordGateError("pollGuardStatusFallback", error);
@@ -1740,133 +1949,129 @@
       if (!supabaseClient) return;
 
       if (guardStatusChannel) {
-        supabaseClient.removeChannel(guardStatusChannel);
+        try { supabaseClient.removeChannel(guardStatusChannel); } catch (err) { /* stale channel */ }
         guardStatusChannel = null;
       }
 
       guardStatusChannel = supabaseClient
         .channel("guard-screen-status")
-        .on(
-          "postgres_changes",
+        .on("postgres_changes",
           { event: "UPDATE", schema: "public", table: "guard_screen_status" },
           async (payload) => {
-            await processGuardStatusRow(payload.new);
-          }
-        )
+            try { await processGuardStatusRow(payload.new); }
+            catch (err) { recordGateError("realtimeGuardStatus", err); }
+          })
         .subscribe((status) => {
           qrRuntime.realtimeStatus = status;
           setQrDiagnostics(status === "SUBSCRIBED" ? "Realtime متصل" : "Realtime: " + status);
+
           if (status === "SUBSCRIBED") {
             setConnection("Realtime متصل", "ready");
           }
-
           if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
             setConnection("Realtime غير مستقر", "error");
-            showSetupWarning(
-              "Realtime لم يتصل بشكل مستقر. الصفحة ستبقى تعمل، ويمكن تحديثها يدويًا.",
-              "error"
-            );
+            showSetupWarning("Realtime لم يتصل بشكل مستقر. الصفحة ستبقى تعمل، ويمكن تحديثها يدويًا.", "error");
             const retryDelay = Math.min(30000, 5000 * Math.max(1, qrRuntime.consecutiveFailures + 1));
             setManagedTimeout("realtimeReconnect", () => subscribeToGuardStatus(), retryDelay);
           }
         });
     }
 
-    async function copyQrLink() {
-      try {
-        await navigator.clipboard.writeText(currentQrUrl);
-        showSetupWarning("تم نسخ رابط QR.", "ok");
-      } catch {
-        alert(currentQrUrl);
-      }
-    }
-
-    function openQrLink() {
-      window.open(currentQrUrl, "_blank", "noopener,noreferrer");
-    }
-
-    function setViolationMessage(message, type = "warning") {
-      const el = $("violationResult");
-      el.textContent = message;
-      el.className = "notice";
-      if (type === "error") el.classList.add("error");
-      if (type === "ok") el.classList.add("ok");
-      el.classList.remove("hidden");
-    }
-
+    /* =========================================================
+       VIOLATION REPORT
+       ========================================================= */
     async function submitViolationReport() {
       if (!supabaseClient) {
         setViolationMessage("لا يمكن إرسال المخالفة قبل إعداد Supabase.", "error");
         return;
       }
 
-      const file = $("violationPhoto").files[0];
+      const fileInput = $("violationPhoto");
+      const button = $("violationButton");
+      const file = fileInput && fileInput.files ? fileInput.files[0] : null;
 
       if (!file) {
         setViolationMessage("الصورة مطلوبة لإرسال البلاغ.", "error");
         return;
       }
 
-      const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
-      if (!allowedTypes.has(file.type)) {
+      const allowedTypes = { "image/jpeg": true, "image/png": true, "image/webp": true };
+      if (!allowedTypes[file.type]) {
         setViolationMessage("نوع الصورة غير مدعوم. استخدم JPG أو PNG أو WEBP.", "error");
         return;
       }
-
       if (file.size > 5 * 1024 * 1024) {
         setViolationMessage("حجم الصورة يجب أن لا يتجاوز 5MB.", "error");
         return;
       }
 
-      const button = $("violationButton");
-      button.disabled = true;
-      button.textContent = "جارِ الإرسال...";
+      if (button) {
+        button.disabled = true;
+        button.textContent = "جارِ الإرسال...";
+      }
 
       try {
-        const extension = (file.name.split(".").pop() || "jpg").toLowerCase();
-        const path = `violations/${Date.now()}-${Math.random().toString(16).slice(2)}.${extension}`;
+        const nameParts = String(file.name || "").split(".");
+        const rawExt = (nameParts.length > 1 ? nameParts.pop() : "jpg").toLowerCase();
+        const extension = /^[a-z0-9]{2,5}$/.test(rawExt) ? rawExt : "jpg";
+        const path = "violations/" + Date.now() + "-" + safeRandomId("v") + "." + extension;
 
         const upload = await supabaseClient
           .storage
           .from("violation-photos")
-          .upload(path, file, {
-            cacheControl: "3600",
-            upsert: false
-          });
+          .upload(path, file, { cacheControl: "3600", upsert: false });
 
-        if (upload.error) {
-          throw new Error(upload.error.message);
+        if (upload.error) throw new Error(upload.error.message);
+
+        const device = getGateDevice();
+        const submitResult = await rpcWithTimeout(
+          () => supabaseClient.rpc("submit_violation_report", {
+            p_employee_id: $("violationEmployee") ? $("violationEmployee").value : "",
+            p_note: $("violationNote") ? $("violationNote").value : "",
+            p_photo_url: path,
+            p_device_code: device.device_code,
+            p_device_token: getOfflineDeviceToken()
+          }),
+          QR_REQUEST_TIMEOUT_MS,
+          "انتهت مهلة إرسال البلاغ"
+        );
+        const submitError = submitResult && submitResult.error !== undefined ? submitResult.error : null;
+        const submitData = submitResult && submitResult.data !== undefined ? submitResult.data : submitResult;
+
+        if (submitError || !submitData || submitData.ok !== true) {
+          throw new Error((submitError && submitError.message) || (submitData && submitData.message) || "فشل إرسال البلاغ.");
         }
 
-        const { data, error } = await supabaseClient.rpc("submit_violation_report", {
-          p_employee_id: $("violationEmployee").value,
-          p_note: $("violationNote").value,
-          p_photo_url: path
-        });
+        setViolationMessage(submitData.message || "تم إرسال المخالفة إلى الإدارة.", "ok");
 
-        if (error || !data || data.ok !== true) {
-          throw new Error(error?.message || data?.message || "فشل إرسال البلاغ.");
-        }
-
-        setViolationMessage(data.message || "تم إرسال المخالفة إلى الإدارة.", "ok");
-        $("violationEmployee").value = "";
-        $("violationNote").value = "";
-        $("violationPhoto").value = "";
+        if ($("violationEmployee")) $("violationEmployee").value = "";
+        if ($("violationNote")) $("violationNote").value = "";
+        if (fileInput) fileInput.value = "";
       } catch (err) {
-        setViolationMessage("فشل إرسال البلاغ: " + err.message, "error");
+        setViolationMessage("فشل إرسال البلاغ: " + ((err && err.message) || String(err)), "error");
       } finally {
-        button.disabled = false;
-        button.textContent = "إرسال المخالفة للأدمن";
+        if (button) {
+          button.disabled = false;
+          button.textContent = "إرسال المخالفة للأدمن";
+        }
       }
     }
 
+    /* =========================================================
+       SERVICE WORKER
+       ========================================================= */
     function registerOfflineGateMode() {
       if (!("serviceWorker" in navigator)) return;
+
       navigator.serviceWorker.register("./service-worker.js").then((registration) => {
-        setManagedInterval("serviceWorkerUpdate", () => registration.update(), 15 * 60 * 1000);
+        setManagedInterval("serviceWorkerUpdate", () => {
+          registration.update().catch(() => { /* offline */ });
+        }, 15 * 60 * 1000);
+
         if (registration.waiting) {
           registration.waiting.postMessage({ type: "SKIP_WAITING" });
         }
+
         registration.addEventListener("updatefound", () => {
           const worker = registration.installing;
           if (!worker) return;
@@ -1878,24 +2083,87 @@
         });
       }).catch((err) => {
         console.warn("Offline Gate Mode registration failed:", err);
+        recordGateError("registerServiceWorker", err);
       });
     }
 
-    registerOfflineGateMode();
-    initSupabase();
-    restoreLastValidQr().catch((error) => recordGateError("restoreLastValidQr", error));
-    updateNetworkState();
-    window.addEventListener("online", updateNetworkState);
-    window.addEventListener("offline", updateNetworkState);
-    setManagedInterval("gateHeartbeat", syncGateDeviceHeartbeat, 60000);
-    setManagedInterval("guardStatusPoll", pollGuardStatusFallback, 5000);
-    startQrLoop();
-    startQrWatchdog();
-    subscribeToGuardStatus();
+    /* =========================================================
+       EVENT BINDING
+       ========================================================= */
+    function bindEvents() {
+      const refreshBtn = $("refreshQrButton");
+      if (refreshBtn) refreshBtn.addEventListener("click", () => { refreshQrNow(); });
 
-    window.addEventListener("pagehide", cleanupLifecycle);
-    window.addEventListener("beforeunload", cleanupLifecycle);
+      const violationBtn = $("violationButton");
+      if (violationBtn) violationBtn.addEventListener("click", () => { submitViolationReport(); });
+
+      window.addEventListener("online", updateNetworkState);
+      window.addEventListener("offline", updateNetworkState);
+      window.addEventListener("pagehide", cleanupLifecycle);
+      window.addEventListener("beforeunload", cleanupLifecycle);
+      window.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible" && navigator.onLine && supabaseClient) {
+          // Refresh on tab return, but only if last success is stale.
+          if (!qrRuntime.lastSuccessAt || (Date.now() - qrRuntime.lastSuccessAt) > (QR_REFRESH_SECONDS * 1000)) {
+            refreshQrNow();
+          }
+        }
+      });
+    }
+
+    /* =========================================================
+       BOOT
+       ========================================================= */
+    async function boot() {
+      // Debug flag is opt-in only. Never enables token logging.
+      window.__ALBASHIR_DEBUG__ = window.__ALBASHIR_DEBUG__ === true;
+
+      registerOfflineGateMode();
+
+      // FIX-E: deferred libraries may lag behind inline boot. Wait briefly, then fail loud.
+      const libsOk = await waitForLibraries(6000);
+      if (!libsOk) {
+        setConnection("تعذر تحميل المكتبات المحلية", "error");
+        showSetupWarning("تعذر تحميل مكتبات supabase/qrcode المحلية. حدّث الصفحة.", "error");
+        setQrDiagnostics("بانتظار المكتبات");
+        updateCountdownDisplay();
+        return;
+      }
+
+      const ready = initSupabase();
+      bindEvents();
+
+      try {
+        await restoreLastValidQr();
+      } catch (error) {
+        recordGateError("restoreLastValidQr", error);
+      }
+
+      await updateNetworkState();
+
+      if (ready) {
+        setManagedInterval("gateHeartbeat", syncGateDeviceHeartbeat, 60000);
+        setManagedInterval("guardStatusPoll", pollGuardStatusFallback, 5000);
+        startQrLoop();
+        startQrWatchdog();
+        startScanAgeTimer();
+        subscribeToGuardStatus();
+      } else {
+        setQrDiagnostics("بانتظار إعداد Supabase");
+        updateCountdownDisplay();
+      }
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", boot, { once: true });
+    } else {
+      boot();
+    }
+  })();
   </script>
-<script src="./global-leadership.js"></script>
+
+  <script src="./global-leadership.js" defer></script>
+  <script src="./assets/js/app-state.js"></script>
+  <script src="./assets/js/ui-components.js"></script>
 </body>
 </html>

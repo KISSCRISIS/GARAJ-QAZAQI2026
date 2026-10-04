@@ -1,0 +1,9 @@
+/* ALBASHIR Responsive v1.1 */
+.alb-dashboard{display:grid;grid-template-columns:240px 1fr;gap:12px}
+.alb-table-wrap{overflow-x:auto}
+.alb-grid-5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.alb-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.alb-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.alb-qr,.alb-camera{width:100%}
+@media(max-width:1100px){.alb-dashboard{grid-template-columns:1fr}.alb-grid-5{grid-template-columns:repeat(2,1fr)}.alb-grid-3,.alb-grid-2,.alb-lead{grid-template-columns:1fr}}
+@media(max-width:390px){.alb-header{flex-direction:column;text-align:center}.alb-table{font-size:13px;min-width:560px}}
