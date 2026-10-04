@@ -1,4 +1,4 @@
-const CACHE_VERSION = "emergency-room-parking-offline-v14";
+const CACHE_VERSION = "emergency-room-parking-offline-v15";
 
 const OFFLINE_ASSETS = [
   "./",
@@ -19,7 +19,12 @@ const OFFLINE_ASSETS = [
   "./albashir-gate-logo.png",
   "./hospital-hero.png",
   "./logo.jpeg",
-  "./hero.jpeg"
+  "./hero.jpeg",
+  "./assets/css/design-system.css",
+  "./assets/css/components.css",
+  "./assets/css/responsive.css",
+  "./assets/js/app-state.js",
+  "./assets/js/ui-components.js"
 ];
 
 self.addEventListener("install", (event) => {
