@@ -40,6 +40,12 @@ Admin Dashboard
 
 ## 3. SQL Patch Execution Order
 
+For a brand-new Supabase project, run `schema_consolidated_fresh_install.sql`
+instead of applying the files below one by one — it concatenates all of them
+in this exact order, with its own header explaining why this order and not
+one of the other orders previously listed in this repo's docs. It is NOT for
+the existing Production project (see `PRODUCTION_MIGRATION_MAPPING.md`).
+
 1. schema.sql
 2. schema_patch_pgcrypto_schema_fix.sql
 3. schema_patch_permanent_specialty.sql
@@ -52,10 +58,32 @@ Admin Dashboard
 10. schema_patch_production_hardening.sql
 11. schema_patch_gate_qr_device_auth.sql
 
+`schema_patch_guard_device_admin_control.sql` is intentionally excluded —
+its own header marks it deprecated/non-canonical
+(see `PRODUCTION_RPC_CANONICAL_MAP.md`); `admin_approve_gate_device` from
+`schema_patch_offline_gate_mode.sql` is the canonical guard-approval API.
+
 Migration dependencies:
 
-- Run `schema_patch_pgcrypto_schema_fix.sql` before patches that depend on the trusted-device and offline-device hashing functions.
+- Run `schema_patch_pgcrypto_schema_fix.sql` second, right after `schema.sql`.
+  It is a fix for pgcrypto landing in the wrong Postgres schema; `create
+  extension if not exists` cannot relocate an already-installed extension, so
+  it must run before `schema.sql`'s and `schema_patch_auto_verify.sql`'s own
+  unqualified `create extension if not exists "pgcrypto"` calls would
+  otherwise make the fix a no-op on a fresh database.
+- `schema_patch_verify_employee_profile.sql` must run after `schema.sql`,
+  `schema_patch_permanent_specialty.sql`, `schema_patch_auto_verify.sql` and
+  `schema_patch_offline_gate_mode.sql` (stated in its own header).
+- `schema_patch_employee_profiles.sql` must run after
+  `schema_patch_verify_employee_profile.sql` (stated in its own header).
 - Include `schema_patch_trusted_device_registration_flow.sql` because it provides the employee trusted-device registration, approval, and pending-to-trusted promotion flow.
+- `schema_patch_production_hardening.sql` must run after the trusted-device
+  patches (not before, despite one earlier doc suggesting otherwise) — it
+  references `trusted_device_token_hash`, `trusted_device_enabled` and
+  `register_trusted_device`, all introduced by
+  `schema_patch_trusted_device_registration_flow.sql` /
+  `schema_patch_trusted_device_metadata.sql`. Its own header also says to run
+  it last, after every other patch.
 - Run `schema_patch_gate_qr_device_auth.sql` last because it overrides the QR runtime with `create_qr_session(device_code, device_token)` and replaces the unsecured QR-generation flow with trusted guard-device authentication.
 
 ## 4. Critical Tables
