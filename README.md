@@ -1,665 +1,510 @@
-# Emergency Room Parking — Employee Private Parking Access System
+# ALBASHIR Emergency Hospital Gate
 
-**Concept & Programming:** Dr. Alaa Aqrabawi
+# README Final Production Version v2.3
 
-نظام ويب بسيط وخاص لإدارة دخول كراج الموظفين باستخدام:
+## Master Reference Document
 
-- HTML
-- CSS
-- JavaScript
-- Supabase
-- Netlify
-- GitHub
+This document defines the approved reference for:
 
-بدون:
+-   System architecture.
+-   Application pages.
+-   UI implementation direction.
+-   Design rules.
+-   Image asset rules.
+-   Security principles.
 
-- Next.js
-- React
-- npm
-- build command
-- Terminal
-- ملفات معقدة
+------------------------------------------------------------------------
 
----
+# 1. Reference Architecture
 
-## 1. فكرة النظام
+    ALBASHIR Unified Design System
 
-النظام مكوّن من أربع صفحات رئيسية:
+            ↓
 
-| الملف | الوظيفة |
-|---|---|
-| `index.html` | شاشة الحارس + QR متغير كل 30 ثانية + بلاغ مخالفة بصورة |
-| `verify.html` | صفحة تسجيل الموظف أو التحقق من الدخول |
-| `login.html` | تسجيل دخول الإدارة |
-| `admin_dashboard.html` | لوحة الإدارة الكاملة |
-| `schema.sql` | تجهيز قاعدة بيانات Supabase |
-| `netlify.toml` | إعداد Netlify |
-| `OPERATIONS_24_7.md` | شروط التشغيل المستمر واختبارات الاعتماد قبل التشغيل الفعلي |
-| `ALBASHIR_GATE_24_7_FINAL_SOLUTION_REPORT.md` | تقرير مشاكل وحلول 24/7 حسب آخر مراجعة |
-| `tests/` | أدوات اختبار الضغط والمزامنة بدون تشغيل تلقائي على الإنتاج |
+    Portal Official Visual Reference
 
----
+            ↓
 
-## 2. طريقة العمل
+    Operational Pages
 
-الموظفون يحصلون على رابط التسجيل عبر واتساب.
+    index
 
-الموظف يفتح الرابط ويعبئ:
+    login
 
-- الاسم الكامل
-- رقم الموظف
-- رقم الهاتف
-- القسم / الاختصاص
+    register
 
-الطلب يظهر في لوحة الأدمن.
+    verify
 
-الحارس يفتح `index.html` على هاتفه، ويعرض QR للموظفين.
+    profile
 
-QR:
+    guard
 
-- يتغير كل 30 ثانية
-- ينتهي بعد 30 ثانية
-- ينتهي بعد أول استخدام
-- يظهر نتيجة الدخول على شاشة الحارس
+    admin_dashboard
 
-النتائج:
+Portal is the official visual reference only.
 
-| النتيجة | المعنى | اللون |
-|---|---|---|
-| `ALLOWED` | مسموح بالدخول | أخضر |
-| `DENIED` | غير مسموح | أحمر |
-| `LIMITED` | مسموح جزئيًا | أصفر |
-| `PENDING_FIRST_ENTRY` | دخول أول مرة بعد التسجيل | أصفر |
+The implementation source is:
 
----
+    Design Tokens
 
-## 3. الدخول الأول بعد التسجيل
+    ↓
 
-الموظف الجديد يحصل على دخول أول مرة فقط إذا:
+    Shared Components
 
-- أدخل الاسم
-- أدخل رقم الموظف
-- أدخل رقم الهاتف
-- أدخل القسم / الاختصاص
-- فتح الصفحة من QR صالح وغير مستخدم
+    ↓
 
-هذا الدخول:
+    Application Pages
 
-- لا يجعله Approved نهائيًا
-- يظهر في لوحة الإدارة بوضوح
-- يستخدم مرة واحدة فقط
-- بعده يبقى الطلب `PENDING`
-- لا يستطيع الدخول مرة ثانية إلا بعد موافقة الإدارة
+------------------------------------------------------------------------
 
----
+# 2. Technology Direction
 
-## 4. خطوات Supabase
+Approved:
 
-### الخطوة 1 — إنشاء مشروع Supabase
+-   HTML5
+-   CSS3
+-   Vanilla JavaScript
+-   Supabase Client
+-   RTL Arabic First
+-   Mobile First
 
-ادخلي إلى Supabase وأنشئي مشروعًا جديدًا.
+No framework migration.
 
-بعد إنشاء المشروع، ستحتاجين:
+------------------------------------------------------------------------
 
-```txt
-Project URL
-Anon / Publishable Key
-```
+# 3. Application Pages Specification
 
-مهم جدًا:
+## portal.html
 
-```txt
-لا تضعي service_role key في ملفات HTML أبدًا.
-استخدمي فقط anon / publishable key.
-```
+### Role
 
----
+Official visual identity reference and public gateway.
 
-### الخطوة 2 — تشغيل schema.sql
+### Responsibilities
 
-افتحي:
+-   Hospital identity presentation.
+-   ALBASHIR Gate introduction.
+-   Login entry points.
+-   Official branding.
+-   Leadership presentation.
+-   System features overview.
 
-```txt
-Supabase Dashboard → SQL Editor → New Query
-```
+### Contains
 
-انسخي محتوى ملف:
+-   Hospital logo.
+-   System title.
+-   Entry options.
+-   Dedication section.
+-   Executive Leadership section.
+-   Feature cards.
 
-```txt
-schema.sql
-```
+------------------------------------------------------------------------
 
-ثم اضغطي:
+## index.html
 
-```txt
-Run
-```
+### Role
 
-إذا ظهر تحذير عن Realtime أو publication موجود مسبقًا، غالبًا يمكن تجاهله إذا الجداول انعملت.
+Guard operational screen.
 
----
+### Features
 
-### الخطوة 3 — إنشاء مستخدم الإدارة
+-   Guard authentication/device validation.
+-   QR generation.
+-   Gate device heartbeat.
+-   Device approval status.
+-   QR lifecycle management.
 
-افتحي:
+### States
 
-```txt
-Authentication → Users
-```
+-   Ready.
+-   Generating QR.
+-   Device pending approval.
+-   System unavailable.
+-   Connection error.
 
-ثم أضيفي مستخدمًا جديدًا:
+------------------------------------------------------------------------
 
-```txt
-Email: الإيميل الذي ستدخلين به إلى لوحة الإدارة
-Password: كلمة مرور قوية
-Auto Confirm: مفعّل إذا ظهر الخيار
-```
+## login.html
 
-بعد إنشاء المستخدم:
+### Role
 
-1. افتحي المستخدم.
-2. انسخي `User UID`.
+Unified authentication entry.
 
----
+### Features
 
-### الخطوة 4 — إضافة Super Admin
+-   Employee login.
+-   Guard login.
+-   Admin login.
+-   Session handling.
+-   Secure routing.
 
-بعد نسخ `User UID`، افتحي:
+------------------------------------------------------------------------
 
-```txt
-SQL Editor → New Query
-```
+## register.html
 
-وشغّلي هذا الكود بعد تبديل القيم:
+### Role
 
-```sql
-insert into public.admin_profiles (
-  auth_user_id,
-  email,
-  full_name,
-  role,
-  is_active
-)
-values (
-  'PASTE_YOUR_AUTH_USER_UID_HERE',
-  'PASTE_YOUR_AUTH_EMAIL_HERE',
-  'Dr. Alaa Aqrabawi',
-  'SUPER_ADMIN',
-  true
-)
-on conflict (auth_user_id)
-do update set
-  email = excluded.email,
-  full_name = excluded.full_name,
-  role = 'SUPER_ADMIN',
-  is_active = true;
-```
+Employee registration page.
 
-للتأكد:
+### Features
 
-```sql
-select *
-from public.admin_profiles;
-```
+-   Employee information entry.
+-   Identity data.
+-   Specialty/job information.
+-   Employee photo upload.
+-   Trusted device registration.
+-   Required confirmations.
 
-يجب أن يظهر:
+### Confirmations
 
-```txt
-role = SUPER_ADMIN
-is_active = true
-```
+-   Device documentation confirmation.
+-   Information accuracy declaration.
 
----
+------------------------------------------------------------------------
 
-## 5. وضع قيم Supabase داخل الملفات
+## verify.html
 
-افتحي كل ملف من الملفات التالية:
+### Role
 
-```txt
-index.html
-verify.html
-login.html
-admin_dashboard.html
-```
+QR verification only.
 
-وابحثي عن:
+### Responsibilities
 
-```js
-SUPABASE_URL: "https://qinsfvlspdticposbvst.supabase.co",
-SUPABASE_ANON_KEY: "sb_publishable_okoDqbwZNNvrCZQ025RkPw_qFXkA7I8",
-```
+-   Camera access.
+-   QR scanning.
+-   Verification request.
+-   Access result display.
 
-بدّليها بالقيم الحقيقية من Supabase.
+Does not contain:
 
-مثال:
+-   Employee registration.
+-   Profile management.
 
-```js
-SUPABASE_URL: "https://xxxxxxxx.supabase.co",
-SUPABASE_ANON_KEY: "eyJhbGciOi..."
-```
+------------------------------------------------------------------------
 
-في `index.html` و `verify.html` يوجد أيضًا:
+## profile.html
 
-```js
-LIVE_SITE_URL: "https://sprightly-donut-6db8c8.netlify.app",
-```
+### Role
 
-بعد نشر الموقع على Netlify، ضعي رابط الموقع النهائي مثل:
+Employee personal portal.
 
-```js
-LIVE_SITE_URL: "https://sprightly-donut-6db8c8.netlify.app",
-```
+### Features
 
-قبل نشر Netlify يمكن تركها كما هي، وسيحاول الموقع استخدام الرابط الحالي تلقائيًا.
+-   Employee profile.
+-   Permissions/status.
+-   Trusted device information.
+-   Access history.
+-   Data change requests.
+-   QR scanning option.
 
----
+------------------------------------------------------------------------
 
-## 6. رفع المشروع على GitHub
+## guard.html
 
-ارفعي الملفات التالية إلى GitHub في نفس المكان:
+### Role
 
-```txt
-index.html
-verify.html
-login.html
-admin_dashboard.html
-schema.sql
-README.md
-netlify.toml
-```
+Guard-focused verification interface.
 
-لا تضعيها داخل مجلدات معقدة.
+### Features
 
----
+-   Guard workflow.
+-   Camera verification.
+-   Employee result display.
+-   Access decision information.
 
-## 7. إعداد Netlify
+Guard does not:
 
-من Netlify:
+-   Search employees.
+-   Modify records.
+-   Access employee profiles.
 
-```txt
-Add new site → Import from Git
-```
+------------------------------------------------------------------------
 
-اختاري المستودع من GitHub.
+## admin_dashboard.html
 
-الإعدادات:
+### Role
 
-```txt
-Branch: main
-Build command: اتركيه فارغًا
-Publish directory: .
-Functions directory: اتركيه كما هو أو فارغًا
-```
+Administration and control center.
 
-إذا الملفات داخل مجلد وليس في root، ضعي اسم المجلد في Base directory.
+### Features
 
-لكن الأفضل لهذا المشروع:
+-   Employee management.
+-   Device approvals.
+-   Audit logs.
+-   Security monitoring.
+-   Reports.
+-   System settings.
 
-```txt
-الملفات تكون في root
-Publish directory = .
-Build command = empty
-```
+Design:
 
----
+-   ALBASHIR identity.
+-   Dashboard components.
+-   Tables.
+-   Charts.
+-   Security modules.
 
-## 8. الصفحات بعد النشر
+------------------------------------------------------------------------
 
-بعد نشر الموقع:
+# 4. Shared Design Rules
 
-| الصفحة | الرابط |
-|---|---|
-| شاشة الحارس | `/index.html` |
-| تسجيل الموظفين | `/verify.html` |
-| دخول الإدارة | `/login.html` |
-| لوحة الإدارة | `/admin_dashboard.html` |
+All pages use:
 
-مثال:
+-   Dark Medical Blue theme.
+-   Premium healthcare technology style.
+-   RTL Arabic First.
+-   Mobile First.
 
-```txt
-https://sprightly-donut-6db8c8.netlify.app/index.html
-https://sprightly-donut-6db8c8.netlify.app/verify.html
-https://sprightly-donut-6db8c8.netlify.app/login.html
-https://sprightly-donut-6db8c8.netlify.app/admin_dashboard.html
-```
+Shared components:
 
----
+-   Header.
+-   Cards.
+-   Buttons.
+-   Alerts.
+-   Status indicators.
+-   Navigation elements.
 
-## 9. طريقة الاستخدام اليومية
+------------------------------------------------------------------------
 
-### الحارس
+# 5. Portal Visual Reference
 
-يفتح:
+Layout:
 
-```txt
-index.html
-```
+    Header
 
-ثم يعرض QR للموظف.
+    ↓
 
-الحارس لا يحتاج إلى بحث أو كتابة.
+    Login Panel
 
-إذا حدثت مخالفة:
+    ↓
 
-1. يضغط تسجيل مخالفة.
-2. يلتقط صورة.
-3. يضيف رقم الموظف أو ملاحظة إذا عرف.
-4. يرسل البلاغ.
+    Dedication Section
 
----
+    ↓
 
-### الموظف
+    Feature Cards
 
-يفتح رابط QR أو رابط التسجيل.
+    ↓
 
-إذا جديد:
+    Executive Leadership
 
-```txt
-يعبئ نموذج التسجيل
-```
+## Dedication
 
-إذا مسجل:
+Approved:
 
-```txt
-يدخل رقم الموظف + رقم الهاتف
-```
+-   Independent full-width section.
+-   Larger visual area.
+-   Premium design.
+-   Above leadership images.
+-   Blue and gold identity.
 
----
+## Leadership Images
 
-### الأدمن
+Approved cards:
 
-يفتح:
+1.  Dr. Salah Al-Qazqi
 
-```txt
-login.html
-```
+2.  Dr. Suleiman Mohammad Abu Awad
 
-يسجل الدخول بنفس إيميل وكلمة مرور Supabase Auth.
+3.  Dr. Hassan Shehadeh
 
-ثم ينتقل إلى:
+Desktop:
 
-```txt
-admin_dashboard.html
-```
+-   Three horizontal cards.
 
----
+Mobile:
 
-## 10. صلاحيات الإدارة
+-   Vertical stacked cards.
 
-### SUPER_ADMIN
+------------------------------------------------------------------------
 
-يستطيع:
+# 6. Image Assets Specification
 
-- الموافقة والرفض
-- إضافة مشرفين
-- تعطيل مشرفين
-- تعديل حدود الاختصاصات
-- رؤية البلاغات
-- رؤية الإحصائيات
-- تصدير CSV
-- رؤية Audit
+Separate document:
 
-### SUB_ADMIN
+ALBASHIR_Image_Assets_Specification.md
 
-يستطيع:
+This document is separate from:
 
-- الموافقة والرفض
-- رؤية البلاغات
-- رؤية الإحصائيات
-- رؤية سجلات الدخول
+ALBASHIR_Design_Tokens.md
 
-ولا يستطيع:
+Design Tokens contains:
 
-- إضافة مشرفين
-- تغيير حدود الاختصاصات
-- رفع نفسه إلى Super Admin
+-   Colors.
+-   Fonts.
+-   Spacing.
+-   Components.
+-   UI rules.
 
----
+------------------------------------------------------------------------
 
-## 11. ملاحظات أمان مهمة
+## Executive Leadership Images
 
-- لا تستخدمي `service_role` داخل أي HTML.
-- لا تنشري Database password.
-- استخدمي فقط anon / publishable key.
-- الصلاحيات محمية بـ RLS و RPC.
-- شاشة الحارس بسيطة ومفتوحة وظيفيًا، لذلك لا تشاركي رابطها إلا مع الحارس أو الفريق المسؤول.
-- لنسخة أقوى أمنيًا لاحقًا يمكن إضافة تسجيل دخول للحارس أو Edge Function.
+Source:
 
----
+-   Original approved management portraits only.
 
-## 12. إذا ظهرت شاشة بيضاء
+Rules:
 
-المفروض لا تظهر شاشة بيضاء.
+-   Use original photographs.
+-   Do not modify faces.
+-   Do not replace images with AI-generated faces.
+-   Do not reconstruct identities.
+-   Do not alter facial characteristics.
 
-إذا ظهر خطأ، افحصي:
+Allowed:
 
-1. هل شغّلتِ `schema.sql`؟
-2. هل وضعتِ `SUPABASE_URL`؟
-3. هل وضعتِ `SUPABASE_ANON_KEY`؟
-4. هل أضفتِ Super Admin في `admin_profiles`؟
-5. هل دخلتِ من `login.html` بنفس إيميل Auth؟
-6. هل Netlify Publish directory = `.`؟
+-   Crop.
+-   Resize.
+-   Alignment.
+-   Placement.
 
----
+Usage:
 
-## 13. الملفات المطلوبة نهائيًا
+-   Executive cards.
+-   Portal leadership area.
+-   Official presentations.
 
-```txt
-index.html
-verify.html
-login.html
-admin_dashboard.html
-schema.sql
-README.md
-netlify.toml
-```
+------------------------------------------------------------------------
 
+## Logo and Identity Images
 
+Assets:
 
----
+-   Main Logo.
+-   Favicon.
+-   Apple Touch Icon.
+-   PWA Icons.
 
-## القيم التي تم إدخالها في هذه النسخة
+Rules:
 
-```txt
-APP_NAME = Emergency Room Parking
-LIVE_SITE_URL = https://sprightly-donut-6db8c8.netlify.app
-SUPABASE_URL = https://qinsfvlspdticposbvst.supabase.co
-SUPABASE_ANON_KEY = تم إدخاله داخل ملفات HTML
-```
+-   Maintain official proportions.
+-   Do not redraw logo.
+-   Do not alter identity colors.
+-   Use correct formats.
 
-ملاحظة: رابط Supabase الذي أعطيته كان يحتوي `/rest/v1/`، وتم تصحيحه داخل الملفات إلى رابط المشروع الأساسي:
+------------------------------------------------------------------------
 
-```txt
-https://qinsfvlspdticposbvst.supabase.co
-```
+## Portal Images
 
+Includes:
 
----
+-   Background images.
+-   Hospital images.
+-   Decorative graphics.
+-   Feature illustrations.
 
-## V1.1 — معلومات المستشفى والشعار والصلاحيات
+Rules:
 
-تم اعتماد:
+-   Preserve hospital identity.
+-   Maintain quality.
+-   Optimize file size without visible degradation.
 
-```txt
-App Name: Emergency Room Parking
-Hospital Arabic: مستشفى الإسعاف والطوارئ / البشير
-Hospital English: Al-Bashir Hospital Emergency Department
-Logo file: logo.jpeg
-Favicon file: favicon.svg
-```
+------------------------------------------------------------------------
 
-### الاختصاصات النهائية
+## Employee Images
 
-```txt
-- جراحة عامة: Max 7 per day
-- باطني: Max 7 per day
-- ENT: Max 7 per day
-- نسائية: Max 7 per day
-- مسالك بولية: Max 7 per day
-- عيون: Max 7 per day
-- جراحة دماغ وأعصاب: Max 7 per day
-- تخدير: Max 7 per day
-- طب عام: Max 7 per day
-- جراحة أوعية دموية: Max 7 per day
-- أخرى: Max 7 per day
-```
+Usage:
 
-### حسابات الإدارة
+-   Registration photo.
+-   Employee profile photo.
+-   Verification display.
 
-لا تُحفظ بيانات حسابات الإدارة الخاصة داخل المستودع العام. أنشئ الحسابات
-من Supabase Auth، ثم أضف ملفاتها من لوحة SUPER_ADMIN أو من ملف SQL خاص
-لا يُرفع إلى GitHub. ملف setup_sub_admins.sql مستبعد بواسطة .gitignore.
+Rules:
 
-الصلاحيات الافتراضية المقترحة للمشرفين:
-- موافقة / رفض طلبات التسجيل
-- مراجعة بلاغات الحارس
-- رؤية سجلات الدخول والإحصائيات
+-   Protect privacy.
+-   Avoid public exposure.
+-   Use secure storage.
+-   Use signed URLs where required.
 
-وتبقى الصلاحيات التالية غير مفعّلة افتراضيًا إلا إذا عدلتيها من صفحة Admins:
-- تصدير CSV
-- تعديل حدود الاختصاصات اليومية
-- رؤية Audit
+------------------------------------------------------------------------
 
-### صلاحيات المشرفين من صفحة Admins
+# 7. Security Principles
 
-من صفحة `Admins` يستطيع `SUPER_ADMIN`:
+Decision order:
 
-- إضافة مشرف
-- تعديل مشرف
-- تعطيل مشرف
-- حذف مشرف من لوحة الإدارة
-- تحديد رقم الهاتف
-- تحديد الدور
-- تحديد المهام التالية:
-  - موافقة / رفض طلبات التسجيل
-  - مراجعة بلاغات الحارس
-  - رؤية سجلات الدخول والإحصائيات
-  - تصدير CSV
-  - تعديل حدود الاختصاصات اليومية
-  - رؤية Audit
+    Employee Status
 
-ملاحظة: حذف المشرف من لوحة الإدارة لا يحذف مستخدم Supabase Auth نفسه.
+    ↓
 
----
+    Trusted Device
 
-## V1.3 — قاعدة QR لكل دخول
+    ↓
 
-تم تثبيت القاعدة التالية داخل الواجهات والتعليمات:
+    QR Validation + Consume
 
-```txt
-كل دخول للكراج يجب أن يتم عبر QR مباشر من شاشة الحارس.
-هذا ينطبق على:
-- الموظفين
-- SUB_ADMIN
-- SUPER_ADMIN
-- Dr. Alaa Aqrabawi
-```
+    ↓
 
-صلاحية الإدارة لا تعني دخول الكراج تلقائيًا.
+    Specialty Rules
 
-أي أدمن يريد دخول الكراج يجب أن يكون أيضًا موجودًا في `employee_registrations` وحالته `APPROVED`.
+    ↓
 
-الـ QR:
-- يتغير كل 30 ثانية
-- ينتهي بعد 30 ثانية
-- يستخدم مرة واحدة فقط
-- تصوير الشاشة لا يعطي صلاحية لاحقة للدخول
+    Daily Limits
 
----
+The system decides access.
 
-## V1.4 — صورة واجهة التطبيق
+The guard receives the result only.
 
-تم اعتماد الصورة الثانية كواجهة مرئية للتطبيق وتمت تسميتها:
+------------------------------------------------------------------------
 
-```txt
-hero.jpeg
-```
+# 8. QR Security Model
 
-يجب رفع الملف مع باقي الملفات في نفس مكان صفحات HTML:
+QR is not a public fallback.
 
-```txt
-hero.jpeg
-logo.jpeg
-favicon.svg
-index.html
-verify.html
-login.html
-admin_dashboard.html
-```
+Requirements:
 
-الاستخدام:
-- `hero.jpeg` = صورة واجهة / Banner للتطبيق
-- `logo.jpeg` = شعار المستشفى داخل البطاقات
-- `favicon.svg` = أيقونة المتصفح / الموقع
+-   Approved gate device.
+-   Heartbeat validation.
+-   Approved status.
 
----
+Failure:
 
-## V1.5 — Offline Gate Mode
+-   Keep last valid QR while valid.
+-   Retry safely.
+-   Show unavailable state.
+-   Never generate unverified QR.
 
-تمت إضافة دعم PWA وتشغيل شاشة الحارس من الكاش عند ضعف أو انقطاع الإنترنت:
+------------------------------------------------------------------------
 
-```txt
-service-worker.js
-manifest.json
-qrcode.min.js
-schema_patch_offline_gate_mode.sql
-schema_patch_verify_employee_profile.sql
-schema_patch_trusted_device_metadata.sql
-schema_patch_employee_profiles.sql
-```
+# 9. Trusted Device Model
 
-بعد تشغيل `schema.sql` والباتشات السابقة، شغّل هذا الملف داخل Supabase SQL Editor:
+Includes:
 
-```txt
-schema_patch_offline_gate_mode.sql
-schema_patch_verify_employee_profile.sql
-schema_patch_trusted_device_metadata.sql
-schema_patch_employee_profiles.sql
-```
+-   Secure token handling.
+-   Device metadata.
+-   Approval lifecycle.
+-   Revocation capability.
 
-ما يضيفه:
-- جدول `gate_devices` لمعرفة جهاز الحارس والبوابة وآخر اتصال.
-- جدول `offline_access_logs` لحفظ محاولات الدخول التي حدثت أثناء الانقطاع.
-- جدول `gate_sync_status` لمعرفة آخر مزامنة وعدد السجلات المعلقة.
-- جدول `offline_device_tokens` لربط مزامنة Offline برمز جهاز محلي.
-- مزامنة تلقائية للمحاولات المحفوظة عند عودة الإنترنت.
-- تخزين محلي عبر IndexedDB باسم `erp_offline_gate_mode`.
-- مكتبة QR محلية بدل CDN حتى يبقى QR يعمل بعد أول تحميل ناجح.
-- بيانات الجهاز الموثوق: المعرف، النوع، الاسم، آخر نشاط، ووكيل المتصفح، مع حفظ رمز الجهاز كـ hash فقط.
-- تسجيل ربط الأجهزة وتغييراتها في `admin_audit_logs`، مع اكتشاف الجهاز الجديد وإلزام التحقق اليدوي قبل ربطه.
-- صفحة `profile.html` لعرض ملف الموظف وسجل QR ورفع طلبات تغيير البيانات.
-- جدول `employee_data_change_requests` لمراجعة تغييرات الموظفين من الإدارة فقط.
+------------------------------------------------------------------------
 
-ملاحظة أمان: في هذه النسخة، وضع Offline يسجل المحاولة فقط ولا يعطي نتيجة `ALLOWED` بدون تحقق Online من Supabase.
+# 10. Documentation Structure
 
-### ترتيب إعداد قاعدة البيانات لمشروع جديد
+Recommended repository documentation:
 
-شغّل الملفات مرة واحدة في Supabase SQL Editor بهذا الترتيب:
+    README.md
 
-1. `schema.sql`
-2. `schema_patch_pgcrypto_schema_fix.sql`
-3. `schema_patch_permanent_specialty.sql`
-4. `schema_patch_auto_verify.sql`
-5. `schema_patch_offline_gate_mode.sql`
-6. `schema_patch_verify_employee_profile.sql`
-7. `schema_patch_employee_profiles.sql`
-8. `schema_patch_trusted_device_registration_flow.sql`
-9. `schema_patch_trusted_device_metadata.sql`
-10. `schema_patch_production_hardening.sql`
-11. `schema_patch_gate_qr_device_auth.sql`
+    ALBASHIR_Master_Final_Specification_v5.md
 
+    ALBASHIR_Design_Tokens.md
 
-Migration dependencies:
+    ALBASHIR_Image_Assets_Specification.md
 
-- Run `schema_patch_pgcrypto_schema_fix.sql` before patches that depend on the trusted-device and offline-device hashing functions.
-- Include `schema_patch_trusted_device_registration_flow.sql` because it provides the employee trusted-device registration, approval, and pending-to-trusted promotion flow.
-- Run `schema_patch_gate_qr_device_auth.sql` last because it overrides the QR runtime with `create_qr_session(device_code, device_token)` and replaces the unsecured QR-generation flow with trusted guard-device authentication.
+    ALBASHIR_Frontend_Security_Audit.md
 
-بعد ذلك أنشئ أول حساب SUPER_ADMIN في Supabase Auth وأضف سجله الإداري
-بملف خاص. لا ترفع الملف الذي يحتوي بيانات الحساب إلى GitHub.
+    Supabase_Production_Database_Audit.md
 
-### النشر
+------------------------------------------------------------------------
 
-هذا تطبيق ثابت ويمكن نشره على GitHub Pages أو Netlify. يجب استخدام HTTPS
-حتى تعمل الكاميرا وService Worker. حدّث `LIVE_SITE_URL` في `index.html`
-إلى رابط النشر النهائي قبل اختبار QR من هاتف آخر.
+# 11. Final Status
+
+Confirmed:
+
+-   Architecture.
+-   UI direction.
+-   Visual references.
+-   Image rules.
+-   Security principles.
+-   Decision model.
+
+Pending Verification:
+
+-   Only items explicitly marked during audits.

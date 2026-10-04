@@ -1,0 +1,332 @@
+<!doctype html>
+<!-- v2.3: split out of verify.html — registration only, no camera/QR. -->
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>تسجيل موظف جديد | ALBASHIR EMERGENCY HOSPITAL</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="apple-touch-icon" href="./logo.jpeg" />
+  <link rel="manifest" href="./manifest.json" />
+  <script src="./access-control.js" data-roles="EMPLOYEE_ONBOARDING"></script>
+  <script src="./supabase.min.js"></script>
+
+  <style>
+    :root {
+      --bg:#020813; --panel:rgba(15,23,42,.78); --line:rgba(148,163,184,.22);
+      --text:#e5f2ff; --muted:#9fb3c8; --blue:#38bdf8; --green:#22c55e;
+      --red:#ef4444; --yellow:#facc15; --orange:#fb923c;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;font-family:Tahoma,Arial,sans-serif;color:var(--text);
+      background:
+        radial-gradient(circle at 15% 0%,rgba(56,189,248,.18),transparent 34%),
+        radial-gradient(circle at 85% 5%,rgba(250,204,21,.10),transparent 30%),
+        linear-gradient(180deg,#020813 0%,#06101f 46%,#000 100%)}
+    body{min-height:100vh;overflow-x:hidden}
+    .app-shell{width:min(720px,100%);margin:auto;padding:12px}
+    .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+    .brand{display:flex;align-items:center;gap:10px}
+    .brand-icon{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-size:21px;
+      background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.32)}
+    .brand-title{margin:0;font-size:clamp(18px,4vw,27px);font-weight:950}
+    .brand-subtitle{color:var(--muted);font-size:12px;margin-top:3px}
+    .pill{padding:8px 12px;border-radius:999px;border:1px solid var(--line);font-size:12px;color:var(--muted);background:rgba(15,23,42,.72)}
+    .pill.ready{color:#bae6fd;border-color:rgba(56,189,248,.35)}
+    .pill.error{color:#fecaca;border-color:rgba(239,68,68,.4)}
+
+    .result-card{min-height:160px;display:grid;place-items:center;text-align:center;border-radius:26px;
+      border:2px solid rgba(56,189,248,.35);background:rgba(2,8,19,.78);
+      box-shadow:0 0 42px rgba(56,189,248,.20);padding:18px;margin-bottom:12px;transition:.2s}
+    .result-card.allowed{border-color:rgba(34,197,94,.78);box-shadow:0 0 58px rgba(34,197,94,.42)}
+    .result-card.denied{border-color:rgba(239,68,68,.78);box-shadow:0 0 58px rgba(239,68,68,.42)}
+    .result-card.limited{border-color:rgba(251,146,60,.84);box-shadow:0 0 58px rgba(251,146,60,.34)}
+    .result-icon{width:82px;height:82px;border-radius:50%;display:grid;place-items:center;margin:0 auto 12px;
+      font-size:38px;border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.10)}
+    .result-title{margin:0;font-size:clamp(24px,6vw,36px);font-weight:950}
+    .result-message{margin:10px auto 0;max-width:560px;color:var(--muted);line-height:1.8;font-size:clamp(14px,3.6vw,18px);white-space:pre-line}
+    .result-details{width:min(620px,100%);margin:16px auto 0;text-align:right}
+    .employee-card{display:grid;grid-template-columns:112px 1fr;gap:14px;align-items:center;padding:12px;border-radius:18px;
+      background:rgba(15,23,42,.62);border:1px solid rgba(148,163,184,.24)}
+    .employee-photo{width:112px;height:112px;border-radius:18px;object-fit:cover;border:1px solid rgba(148,163,184,.32);background:#08111f}
+    .employee-info{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .employee-field{border:1px solid rgba(148,163,184,.16);border-radius:12px;padding:8px;background:rgba(2,8,19,.42)}
+    .employee-field span{display:block;color:var(--muted);font-size:11px;margin-bottom:3px}
+    .employee-field strong{font-size:14px}
+    @media(max-width:620px){.employee-card{grid-template-columns:1fr}.employee-photo{margin:auto}.employee-info{grid-template-columns:1fr}}
+
+    .notice{margin:10px 0;padding:12px;border-radius:15px;border:1px solid rgba(250,204,21,.36);
+      background:rgba(250,204,21,.10);color:#fef3c7;line-height:1.7}
+    .notice.error{border-color:rgba(239,68,68,.42);background:rgba(239,68,68,.10);color:#fecaca}
+    .notice.ok{border-color:rgba(34,197,94,.38);background:rgba(34,197,94,.10);color:#bbf7d0}
+    .hidden{display:none!important}
+
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:18px;backdrop-filter:blur(18px)}
+    .panel h2{margin:0 0 6px;font-size:clamp(20px,5vw,28px)}
+    .desc{margin:0 0 12px;color:var(--muted);font-size:13px;line-height:1.7}
+    label{display:block;color:var(--muted);font-size:13px;margin:11px 0 5px}
+    input,select{width:100%;border:1px solid rgba(148,163,184,.28);background:#08111f;color:var(--text);
+      border-radius:15px;padding:13px;outline:0;font-family:inherit;font-size:15px}
+    input:focus,select:focus{border-color:rgba(56,189,248,.6);box-shadow:0 0 0 4px rgba(56,189,248,.08)}
+    button{width:100%;border:0;cursor:pointer;color:#fff;font-weight:900;border-radius:15px;padding:13px 15px;
+      margin-top:14px;background:linear-gradient(135deg,#0284c7,#0ea5e9);font-family:inherit;font-size:15px}
+    button.green{background:linear-gradient(135deg,#15803d,#22c55e)}
+    button:disabled{opacity:.55;cursor:not-allowed}
+    .profile-button{display:inline-flex;margin-top:12px;padding:10px 14px;border-radius:11px;background:linear-gradient(135deg,#0284c7,#0ea5e9);color:#fff;text-decoration:none;font-weight:900}
+    .file-input{padding:10px;background:#08111f}
+    .photo-preview{width:92px;height:92px;border-radius:16px;object-fit:cover;border:1px solid rgba(148,163,184,.28);display:none;margin-top:10px}
+    .footer{text-align:center;color:var(--muted);font-size:11px;padding:16px 0}
+  </style>
+  <link rel="stylesheet" href="./global-theme.css" />
+</head>
+
+<body class="hospital-ui theme-employee">
+<main class="app-shell">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon" role="img" aria-label="البشير ALBASHIR Gate"></div>
+      <div>
+        <h1 class="brand-title" id="appTitle">ALBASHIR EMERGENCY HOSPITAL</h1>
+        <div class="brand-subtitle">تسجيل موظف جديد</div>
+      </div>
+    </div>
+    <div class="pill" id="connectionBadge">جارِ فحص الاتصال...</div>
+  </header>
+
+  <section class="result-card hidden" id="resultCard" aria-live="assertive">
+    <div>
+      <div class="result-icon" id="resultIcon">◆</div>
+      <h2 class="result-title" id="resultTitle">تم</h2>
+      <p class="result-message" id="resultMessage"></p>
+      <div class="result-details hidden" id="resultDetails"></div>
+      <a id="profileButton" class="profile-button hidden" href="./profile.html">عرض الملف الشخصي</a>
+    </div>
+  </section>
+
+  <div id="setupWarning" class="notice hidden"></div>
+
+  <section class="panel" id="employee-registration">
+    <h2>موظف جديد — التسجيل</h2>
+    <p class="desc">عبّئ الطلب مرة واحدة، (كل البيانات ادناه اجباريه)، ثم تنتظر موافقة الإدارة. بعد الاعتماد توجّه لبوابة الدخول وامسح رمز QR من شاشة الحارس للدخول.</p>
+
+    <form id="registerForm">
+      <label for="fullName">الاسم الكامل</label>
+      <input id="fullName" type="text" placeholder="الاسم الكامل" autocomplete="name" required />
+
+      <label for="employeePhoto">الصورة الشخصية</label>
+      <input id="employeePhoto" class="file-input" type="file" accept="image/*" required />
+      <img id="employeePhotoPreview" class="photo-preview" alt="معاينة الصورة الشخصية" />
+
+      <label for="employeeId">الرقم الوظيفي/الوطني لغير موظفين الوزارة</label>
+      <input id="employeeId" type="text" placeholder="الرقم الوظيفي أو الوطني" inputmode="numeric" required />
+
+      <label for="mobileNumber">رقم الهاتف</label>
+      <input id="mobileNumber" type="tel" placeholder="رقم الهاتف" inputmode="tel" autocomplete="tel" required />
+
+      <label for="jobType">الوظيفة</label>
+      <select id="jobType" required>
+        <option value="">اختر الوظيفة</option>
+        <option>طبيب</option>
+        <option>تمريض</option>
+        <option>فنيين: أشعة</option>
+        <option>فنيين: مختبرات</option>
+        <option>فنيين: صيانة</option>
+        <option>أقسام إدارية</option>
+        <option>أمن</option>
+        <option>غير ذلك</option>
+      </select>
+
+      <label for="specialty">القسم / الاختصاص</label>
+      <select id="specialty" required>
+        <option value="">اختر القسم / الاختصاص</option>
+        <option value="الإسعاف والطوارئ (DRS/NRS/EMT/MLT)">الإسعاف والطوارئ (DRS/NRS/EMT/MLT)</option>
+        <option>طب عام</option>
+        <option>جراحة عامة</option>
+        <option>باطني</option>
+        <option>أطفال</option>
+        <option>ENT</option>
+        <option>نسائية</option>
+        <option>مسالك بولية</option>
+        <option>عيون</option>
+        <option>جراحة دماغ وأعصاب</option>
+        <option>تخدير</option>
+        <option>جراحة أوعية دموية</option>
+        <option>أشعة</option>
+        <option>مختبرات</option>
+        <option>صيانة</option>
+        <option>إدارة</option>
+        <option>أمن</option>
+        <option>أخرى</option>
+      </select>
+
+      <label style="display:flex;align-items:flex-start;gap:8px;margin-top:16px;cursor:pointer">
+        <input id="confirmDeviceDocs" type="checkbox" required style="width:auto;margin-top:3px" />
+        <span style="color:var(--muted);font-size:13px;line-height:1.6">أقر بأن بيانات هذا الجهاز موثقة باسمي وسأستخدمه للدخول لاحقًا.</span>
+      </label>
+      <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer">
+        <input id="confirmAccuracy" type="checkbox" required style="width:auto;margin-top:3px" />
+        <span style="color:var(--muted);font-size:13px;line-height:1.6">أقر بأن جميع البيانات المدخلة صحيحة ودقيقة.</span>
+      </label>
+
+      <button type="submit" id="registerButton" class="green">إرسال طلب التسجيل</button>
+    </form>
+  </section>
+
+  <footer class="footer">Concept &amp; Programming — Dr. Alaa Aqrabawi</footer>
+</main>
+
+<script src="./verify-shared.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  function setConnection(text, type = "ready") {
+    const el = $("connectionBadge");
+    el.textContent = text;
+    el.className = "pill " + (type === "error" ? "error" : "ready");
+  }
+
+  function showSetupWarning(message, type = "warning") {
+    const el = $("setupWarning");
+    el.textContent = message;
+    el.className = "notice";
+    if (type === "error") el.classList.add("error");
+    if (type === "ok") el.classList.add("ok");
+    el.classList.remove("hidden");
+  }
+
+  function setResult(result, message, employee = null) {
+    const card = $("resultCard"), icon = $("resultIcon"), title = $("resultTitle"), msg = $("resultMessage"), details = $("resultDetails");
+    card.className = "result-card";
+    card.classList.remove("hidden");
+
+    if (result === "PENDING") {
+      card.classList.add("limited"); icon.textContent = "…"; title.textContent = "الطلب قيد المراجعة";
+    } else if (result === "DENIED") {
+      card.classList.add("denied"); icon.textContent = "×"; title.textContent = "تعذر إرسال الطلب";
+    } else {
+      icon.textContent = "◆"; title.textContent = "تمت العملية";
+    }
+
+    msg.textContent = message || "تمت العملية.";
+    if (employee) {
+      details.innerHTML = renderEmployeeDetails(employee);
+      details.classList.remove("hidden");
+      const profileButton = $("profileButton");
+      if (profileButton && employee.employee_id) {
+        profileButton.href = `./profile.html?employee_id=${encodeURIComponent(employee.employee_id)}`;
+        profileButton.classList.remove("hidden");
+      }
+    } else {
+      details.innerHTML = "";
+      details.classList.add("hidden");
+      $("profileButton")?.classList.add("hidden");
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function disableButton(id, disabled, busyText, normalText) {
+    const button = $(id); button.disabled = disabled; button.textContent = disabled ? busyText : normalText;
+  }
+
+  function setupEmployeePhotoPreview() {
+    const input = $("employeePhoto");
+    const preview = $("employeePhotoPreview");
+    if (!input || !preview) return;
+    input.addEventListener("change", () => {
+      const file = input.files?.[0];
+      if (!file) {
+        preview.removeAttribute("src");
+        preview.style.display = "none";
+        return;
+      }
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = "block";
+    });
+  }
+
+  async function uploadEmployeePhoto(employeeId) {
+    const file = $("employeePhoto").files?.[0];
+    if (!file) throw new Error("الصورة الشخصية مطلوبة.");
+    const extension = (file.name.split(".").pop() || "jpg").toLowerCase();
+    const safeEmployeeId = String(employeeId || "employee").replace(/[^\w-]+/g, "-");
+    const path = `registrations/${safeEmployeeId}/${Date.now()}-${Math.random().toString(16).slice(2)}.${extension}`;
+    const upload = await supabaseClient.storage.from("employee-photos").upload(path, file, {
+      cacheControl: "3600",
+      upsert: false
+    });
+    if (upload.error) throw new Error(upload.error.message);
+    return supabaseClient.storage.from("employee-photos").getPublicUrl(path).data.publicUrl;
+  }
+
+  $("registerForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!supabaseClient) { setResult("DENIED", "لا يمكن الاتصال بالنظام."); return; }
+    if (!navigator.onLine) { setResult("DENIED", "لا يوجد اتصال بالإنترنت. التسجيل يحتاج اتصالاً فعالاً — حاول مرة أخرى عند توفر الشبكة."); return; }
+
+    try {
+      disableButton("registerButton", true, "جارِ رفع الصورة...", "إرسال طلب التسجيل");
+      const employeeId = $("employeeId").value.trim();
+      const deviceId = getTrustedDeviceId();
+      const photoUrl = await uploadEmployeePhoto(employeeId);
+      const pendingDeviceToken = getOrCreatePendingRegistrationToken(employeeId, deviceId);
+      disableButton("registerButton", true, "جارِ إرسال الطلب...", "إرسال طلب التسجيل");
+      const payload = {
+        p_full_name: $("fullName").value.trim(),
+        p_employee_id: employeeId,
+        p_mobile_number: $("mobileNumber").value.trim(),
+        p_specialty: $("specialty").value.trim(),
+        p_qr_token: null,
+        p_job_type: $("jobType").value.trim(),
+        p_department: $("jobType").value.trim(),
+        p_photo_url: photoUrl,
+        p_device_token: pendingDeviceToken,
+        p_device_id: deviceId,
+        p_device_type: getDeviceType(),
+        p_device_name: getDeviceName(),
+        p_user_agent: navigator.userAgent
+      };
+      const { data, error } = await supabaseClient.rpc("register_employee_request", payload);
+      const result = normalizeRpcData(data, "register_employee_request") || data;
+      if (error || !result) throw new Error(error?.message || "فشل إرسال الطلب.");
+      setResult(result.result || "PENDING", "تم إرسال طلب التسجيل بنجاح.\nحالة الحساب الآن: قيد المراجعة.\nبعد اعتماد الإدارة توجّه لبوابة الدخول وامسح QR من شاشة الحارس للدخول.", result.employee || null);
+      if (result.ok === true) {
+        saveTrustedDeviceToken(pendingDeviceToken);
+        $("registerForm").reset();
+        $("employeePhotoPreview").removeAttribute("src");
+        $("employeePhotoPreview").style.display = "none";
+      }
+    } catch (err) {
+      setResult("DENIED", "حدث خطأ: " + err.message);
+    } finally {
+      disableButton("registerButton", false, "جارِ إرسال الطلب...", "إرسال طلب التسجيل");
+    }
+  });
+
+  function updateNetworkState() {
+    if (!navigator.onLine) {
+      setConnection("غير متصل بالإنترنت", "error");
+      return;
+    }
+    if (supabaseClient) setConnection("Supabase جاهز");
+  }
+
+  function initSupabase() {
+    $("appTitle").textContent = APP_CONFIG.APP_NAME;
+    supabaseClient = createSupabaseClient();
+    if (!supabaseClient) {
+      setConnection("Supabase غير مفعّل", "error");
+      showSetupWarning("لا يمكن الاتصال بالنظام حاليًا.", "error");
+      return;
+    }
+    setConnection("Supabase جاهز");
+  }
+
+  setupEmployeePhotoPreview();
+  initSupabase();
+  updateNetworkState();
+  window.addEventListener("online", updateNetworkState);
+  window.addEventListener("offline", updateNetworkState);
+</script>
+<script src="./global-leadership.js"></script>
+</body>
+</html>
