@@ -1,0 +1,56 @@
+/* ALBASHIR Components v1.0 — shared only, display layer, no auth/QR/Supabase logic here */
+/* Header (4 variants share structure, differ by context slot) */
+.alb-header{display:flex;align-items:center;justify-content:space-between;gap:12px;background:linear-gradient(180deg,#0A1A3A,#060D1F);border:1px solid var(--alb-line);border-radius:var(--alb-r);padding:12px 16px}
+.alb-header .brand{display:flex;align-items:center;gap:12px}
+.alb-header .brand img{width:48px;height:48px;border-radius:50%;border:2px solid var(--alb-gold);object-fit:cover}
+.alb-header .sys{font-weight:800}
+.alb-header .ctx{color:var(--alb-muted);font-size:12px}
+/* Status badges (unified) */
+.alb-badge{display:inline-flex;align-items:center;gap:6px;border:1px solid;border-radius:999px;padding:4px 12px;font-size:12px}
+.alb-badge.ONLINE{color:var(--alb-green);border-color:var(--alb-green)}
+.alb-badge.OFFLINE{color:#9aa7bd;border-color:#9aa7bd}
+.alb-badge.EMERGENCY{color:var(--alb-emergency);border-color:var(--alb-emergency)}
+.alb-badge.PENDING{color:var(--alb-amber);border-color:var(--alb-amber)}
+.alb-badge.APPROVED,.alb-badge.ALLOWED_PERMANENT{color:var(--alb-green);border-color:var(--alb-green)}
+.alb-badge.DENIED{color:var(--alb-danger);border-color:var(--alb-danger)}
+.alb-badge.LIMITED,.alb-badge.LIMITED_ALLOWED{color:var(--alb-gold2);border-color:var(--alb-gold)}
+/* Cards */
+.alb-card{background:var(--alb-card);border:1px solid var(--alb-line);border-radius:var(--alb-r);padding:16px;box-shadow:var(--alb-shadow-sm)}
+.alb-card.gold{border-color:var(--alb-gold)}
+.alb-stat b{font-size:28px;display:block}
+/* Leadership Card (original portraits only — placement styles, no image data) */
+.alb-lead{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.alb-lead .card{text-align:center}
+.alb-lead img{width:100%;height:220px;object-fit:cover;object-position:top;border-radius:10px;border:2px solid var(--alb-gold);background:#081226}
+/* Buttons */
+.alb-btn{border:1px solid var(--alb-line);background:#0E3A8A;color:#fff;padding:10px 18px}
+.alb-btn.primary{background:var(--alb-blue);border-color:var(--alb-blue)}
+.alb-btn.secondary{background:transparent;color:var(--alb-text)}
+.alb-btn.danger{background:transparent;border-color:var(--alb-danger);color:var(--alb-danger)}
+.alb-btn.success{background:var(--alb-green);border-color:var(--alb-green);color:#00130b}
+.alb-btn.gold{background:var(--alb-gold);border-color:var(--alb-gold);color:#000}
+/* Forms */
+.alb-form label{display:block;color:var(--alb-muted);margin:10px 0 6px;font-size:12px}
+.alb-form input,.alb-form select,.alb-form textarea{width:100%;background:#081226;border:1px solid var(--alb-line);color:#fff;padding:10px}
+.alb-form .err-msg{color:var(--alb-danger);font-size:12px;margin-top:4px;display:none}
+.alb-form .invalid .err-msg{display:block}
+.alb-form .invalid input,.alb-form .invalid select{border-color:var(--alb-danger)}
+.alb-form input[type="file"]{padding:8px;background:#081226}
+.alb-form .file-name{color:var(--alb-muted);font-size:12px}
+/* Alerts */
+.alb-alert{border-radius:var(--alb-r-sm);padding:10px 14px;margin:10px 0;border:1px solid}
+.alb-alert.ok{border-color:var(--alb-green);background:#00D08422}
+.alb-alert.warn{border-color:var(--alb-warning);background:#FFB02022}
+.alb-alert.err{border-color:var(--alb-danger);background:#FF454522}
+.alb-alert.info{border-color:var(--alb-blue);background:#007BFF22}
+/* Modal / Drawer */
+.alb-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50}
+.alb-modal.open{display:flex}
+.alb-modal .box{background:var(--alb-card);border:1px solid var(--alb-line);border-radius:var(--alb-r);padding:20px;min-width:320px;max-width:92vw;max-height:88vh;overflow:auto}
+.alb-drawer{position:fixed;top:0;bottom:0;inset-inline-end:0;width:min(420px,94vw);background:var(--alb-card);border-inline-start:1px solid var(--alb-line);transform:translateX(-110%);transition:transform .2s;z-index:50;overflow:auto}
+[dir="ltr"] .alb-drawer{transform:translateX(110%)}
+.alb-drawer.open{transform:none}
+/* Tables */
+.alb-table{width:100%;border-collapse:collapse}
+.alb-table th{color:var(--alb-muted);font-weight:400;padding:10px;border-bottom:1px solid var(--alb-line)}
+.alb-table td{padding:10px;border-bottom:1px solid #16295A;text-align:center}
