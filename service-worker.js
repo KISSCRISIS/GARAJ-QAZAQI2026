@@ -1,4 +1,4 @@
-const CACHE_VERSION = "emergency-room-parking-offline-v14";
+const CACHE_VERSION = "emergency-room-parking-offline-v15";
 
 const OFFLINE_ASSETS = [
   "./",
@@ -19,7 +19,15 @@ const OFFLINE_ASSETS = [
   "./albashir-gate-logo.png",
   "./hospital-hero.png",
   "./logo.jpeg",
-  "./hero.jpeg"
+  "./hero.jpeg",
+  "./assets/js/ui-components.js",
+  "./assets/js/app-state.js",
+  "./assets/css/responsive.css",
+  "./assets/css/components.css",
+  "./assets/css/design-system.css",
+  "./verify-shared.js",
+  "./guard.html",
+  "./register.html"
 ];
 
 self.addEventListener("install", (event) => {
@@ -93,7 +101,9 @@ self.addEventListener("fetch", (event) => {
             "verify.html",
             "profile.html",
             "login.html",
-            "admin_dashboard.html"
+            "admin_dashboard.html",
+            "guard.html",
+            "register.html"
           ]);
           return caches.match(allowedPages.has(page) ? `./${page}` : "./portal.html");
         })

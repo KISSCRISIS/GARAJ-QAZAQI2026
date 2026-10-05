@@ -783,6 +783,11 @@
     }
   </style>
   <link rel="stylesheet" href="./global-theme.css" />
+  <link rel="stylesheet" href="./assets/css/design-system.css" />
+  <link rel="stylesheet" href="./assets/css/components.css" />
+  <link rel="stylesheet" href="./assets/css/responsive.css" />
+  <script src="./assets/js/app-state.js" defer></script>
+  <script src="./assets/js/ui-components.js" defer></script>
 </head>
 
 <body class="hospital-ui theme-guard">
@@ -1679,7 +1684,11 @@
 
         if (supabaseClient) {
           try {
-            await supabaseClient.rpc("reset_guard_screen");
+            const gateDevice = getGateDevice();
+            await supabaseClient.rpc("reset_guard_screen", {
+              p_device_code: gateDevice.device_code,
+              p_device_token: getOfflineDeviceToken()
+            });
           } catch (err) {
             console.warn("Reset RPC failed:", err);
           }
