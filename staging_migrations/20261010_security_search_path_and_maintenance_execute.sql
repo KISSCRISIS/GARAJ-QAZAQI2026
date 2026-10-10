@@ -8,5 +8,5 @@ alter function public.hash_trusted_device_token(text) set search_path = pg_catal
 alter function public.normalize_specialty_name(text) set search_path = pg_catalog, public;
 alter function public.sync_trusted_device_activity() set search_path = pg_catalog, public;
 
-revoke execute on function public.cleanup_expired_qr_sessions() from anon, authenticated;
-revoke execute on function public.rls_auto_enable() from anon, authenticated;
+revoke execute on function public.cleanup_expired_qr_sessions() from public, anon, authenticated;
+revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
