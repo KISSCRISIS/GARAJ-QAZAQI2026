@@ -1,0 +1,203 @@
+diff --git a/tmp/staging-index-lf.html b/tmp/index-qr-resilience.html
+index de3316e..27f8cf9 100644
+--- a/tmp/staging-index-lf.html
++++ b/tmp/index-qr-resilience.html
+@@ -136,6 +136,7 @@
+     const QR_REFRESH_SECONDS = 30;
+     const QR_REQUEST_TIMEOUT_MS = 8000;
+     const QR_WATCHDOG_SECONDS = 90;
++    const QR_REFRESH_LEAD_MS = 10000;
+     const QR_RETRY_BACKOFF_SECONDS = [2, 5, 15, 30];
+     let qrTimer = QR_REFRESH_SECONDS;
+     let guardStatusPollInFlight = false;
+@@ -153,7 +154,10 @@
+       gateDeviceApproved: false,
+       heartbeatVerifiedAt: null,
+       heartbeatLastError: "",
+-      startedAt: Date.now()
++      startedAt: Date.now(),
++      nextAttemptAt: 0,
++      renewalSequence: 0,
++      restoring: false
+     };
+     const CACHE_VERSION = "emergency-room-parking-offline-v30";
+     const LAST_VALID_QR_STORAGE_KEY = "erp_last_valid_qr_v3";
+@@ -395,23 +399,23 @@
+     async function restoreLastValidQr() {
+       const saved = loadLastValidQr();
+       if (!saved) return false;
++      if(qrRuntime.refreshing || (lastValidQr.expiresAt||0)>saved.expiresAt)return false;
++      qrRuntime.restoring=true;
+       lastValidQr = saved;
+       currentQrUrl = saved.url;
+       const remaining = saved.expiresAt
+         ? Math.floor((Number(saved.expiresAt) - Date.now()) / 1000)
+         : QR_REFRESH_SECONDS;
+       qrTimer = remaining;
+-      await drawQr(saved.url, {
+-        token: saved.token,
+-        expiresAt: saved.expiresAt,
+-        secure: true
+-      });
++      try{await drawQr(saved.url,{
++        token:saved.token,expiresAt:saved.expiresAt,secure:true
++      });}finally{qrRuntime.restoring=false;}
+       setQrDiagnostics("تم استرجاع آخر QR صالح");
+       return true;
+     }
+ 
+     function nextQrRetrySeconds() {
+-      const index = Math.min(qrRuntime.consecutiveFailures, QR_RETRY_BACKOFF_SECONDS.length - 1);
++      const index = Math.min(Math.max(qrRuntime.consecutiveFailures - 1, 0), QR_RETRY_BACKOFF_SECONDS.length - 1);
+       return QR_RETRY_BACKOFF_SECONDS[index];
+     }
+ 
+@@ -695,15 +699,16 @@
+ 
+ 
+     async function refreshQrNow() {
+-      if (qrRuntime.refreshing) {
++      if (qrRuntime.refreshing || qrRuntime.restoring) {
+         setQrDiagnostics("طلب QR قيد التنفيذ");
+         return;
+       }
+ 
+       qrRuntime.refreshing = true;
++      const sequence=++qrRuntime.renewalSequence;
+       qrRuntime.attempts += 1;
+-      qrTimer = QR_REFRESH_SECONDS;
+-      $("qrCountdown").textContent = qrTimer;
++      qrRuntime.nextAttemptAt=Number.POSITIVE_INFINITY;
++      if(!lastValidQr.url){qrTimer=0;$("qrCountdown").textContent=0;}
+       setQrDiagnostics("تحديث QR الآن");
+ 
+       try {
+@@ -715,13 +720,7 @@
+           throw new Error("النظام غير متاح حالياً");
+         }
+ 
+-        const gateState = await syncGateDeviceHeartbeat();
+-        if (!gateState.approved) {
+-          const gateError = gateState.error || new Error("تعذر اعتماد جهاز الحارس");
+-          gateError.code = gateState.pendingApproval ? "GATE_NOT_APPROVED" : (gateError.code || "GATE_HEARTBEAT_REJECTED");
+-          gateError.heartbeatReported = true;
+-          throw gateError;
+-        }
++        // The QR issue RPC checks the device; heartbeat outages alone cannot block a valid QR.
+ 
+         const rpcStartedAt = performance.now();
+         const gateDevice = getGateDevice();
+@@ -752,13 +751,16 @@
+         const verifyUrl = new URL(APP_CONFIG.VERIFY_PATH || "/verify.html", liveBaseUrl());
+         verifyUrl.searchParams.set("token", result.token);
+         const expiresInSeconds = Number(result.expires_in_seconds);
+-        const expiresAt = result.expires_at != null
+-          ? Date.parse(result.expires_at)
+-          : qrRequestStartedAt + expiresInSeconds * 1000;
++        const serverExpiry=Date.parse(result.expires_at||"");
++        const serverNow=Date.parse(result.server_now||"");
++        const expiresAt=Number.isFinite(serverExpiry)&&Number.isFinite(serverNow)
++          ? Date.now()+Math.max(0,serverExpiry-serverNow-Math.max(250,(Date.now()-qrRequestStartedAt)/2))
++          : qrRequestStartedAt+expiresInSeconds*1000;
+         if (!Number.isFinite(expiresAt) || expiresAt <= Date.now() ||
+             (result.expires_at == null && (!Number.isFinite(expiresInSeconds) || expiresInSeconds <= 0))) {
+           throw new Error("استجابة انتهاء QR غير صالحة من Supabase");
+         }
++        if(sequence!==qrRuntime.renewalSequence)return;
+         await drawQr(verifyUrl.toString(), {
+           secure: true,
+           token: result.token,
+@@ -770,6 +772,7 @@
+         qrRuntime.lastSecureUrl = verifyUrl.toString();
+         qrRuntime.lastSuccessAt = Date.now();
+         qrRuntime.consecutiveFailures = 0;
++        qrRuntime.nextAttemptAt=Math.max(Date.now()+1000,expiresAt-QR_REFRESH_LEAD_MS);
+         qrRuntime.lastError = "";
+         setConnection("QR نشط", "ready");
+         setQrDiagnostics("QR آمن ومحدث");
+@@ -786,15 +789,23 @@
+           await flushGateAuditEvents();
+         }
+         qrRuntime.consecutiveFailures += 1;
+-        qrRuntime.lastError = message;
+-        qrTimer = nextQrRetrySeconds();
+-        $("qrCountdown").textContent = qrTimer;
++        qrRuntime.lastError=message;
++        qrRuntime.nextAttemptAt=Date.now()+nextQrRetrySeconds()*1000;
++        clearExpiredQr();
++        qrTimer=lastValidQr.url?Math.max(0,Math.ceil((lastValidQr.expiresAt-Date.now())/1000)):0;
++        $("qrCountdown").textContent=qrTimer;
+         const warning = err.code === "GATE_NOT_APPROVED"
+           ? message
+           : "النظام غير متاح حالياً";
+-        setConnection(err.code === "GATE_NOT_APPROVED" ? "الجهاز غير معتمد" : "النظام غير متاح", "error");
+-        setQrDiagnostics("توقف إنشاء QR", message);
+-        showSetupWarning(warning, "error");
++        if(lastValidQr.url&&lastValidQr.expiresAt>Date.now()){
++          setConnection("QR السابق صالح","ready");
++          setQrDiagnostics("تعذر التجديد؛ استمرار QR الحالي",message);
++          showSetupWarning("الرمز الحالي صالح حتى انتهاء صلاحيته وسيعاد التجديد تلقائيًا.","warning");
++        }else{
++          setConnection(err.code==="GATE_NOT_APPROVED"?"الجهاز غير معتمد":"النظام غير متاح","error");
++          setQrDiagnostics("توقف إنشاء QR",message);
++          showSetupWarning(warning,"error");
++        }
+       } finally {
+         qrRuntime.refreshing = false;
+       }
+@@ -802,20 +813,18 @@
+ 
+     function startQrLoop() {
+       clearManagedInterval("qrCountdown");
+-
+-      refreshQrNow();
+-
+-      setManagedInterval("qrCountdown", () => {
++      qrRuntime.nextAttemptAt=lastValidQr.url?Date.now():0;
++      setManagedInterval("qrCountdown",()=>{
+         clearExpiredQr();
+-        qrTimer = lastValidQr.url
+-          ? Math.ceil((lastValidQr.expiresAt - Date.now()) / 1000)
+-          : qrTimer - 1;
+-        if (qrTimer <= 0) {
+-          qrTimer = QR_REFRESH_SECONDS;
+-          refreshQrNow();
+-        }
+-        $("qrCountdown").textContent = qrTimer;
+-      }, 1000);
++        const now=Date.now();
++        qrTimer=lastValidQr.url&&Number.isFinite(lastValidQr.expiresAt)
++          ? Math.max(0,Math.ceil((lastValidQr.expiresAt-now)/1000))
++          : Number.isFinite(qrRuntime.nextAttemptAt)
++            ? Math.max(0,Math.ceil((qrRuntime.nextAttemptAt-now)/1000)):0;
++        $("qrCountdown").textContent=qrTimer;
++        if(!qrRuntime.refreshing && !qrRuntime.restoring && supabaseClient && navigator.onLine && now>=qrRuntime.nextAttemptAt) refreshQrNow();
++      },1000);
++      if(supabaseClient && navigator.onLine) refreshQrNow();
+     }
+ 
+     function startQrWatchdog() {
+@@ -1057,16 +1066,19 @@
+ 
+     registerOfflineGateMode();
+     initSupabase();
+-    restoreLastValidQr().catch((error) => recordGateError("restoreLastValidQr", error));
+-    updateNetworkState();
++    Promise.resolve().then(restoreLastValidQr)
++      .catch(error=>recordGateError("restoreLastValidQr",error))
++      .finally(()=>{startQrLoop();updateNetworkState();});
+     window.addEventListener("online", updateNetworkState);
+     window.addEventListener("offline", updateNetworkState);
+     document.addEventListener("visibilitychange", () => {
+-      if (document.visibilityState === "visible") clearExpiredQr();
++      if(document.visibilityState==="visible"){
++        clearExpiredQr();
++        if(navigator.onLine&&!qrRuntime.refreshing&&!qrRuntime.restoring&&Date.now()>=qrRuntime.nextAttemptAt)refreshQrNow();
++      }
+     });
+     setManagedInterval("gateHeartbeat", syncGateDeviceHeartbeat, 60000);
+     setManagedInterval("guardStatusPoll", pollGuardStatusFallback, 5000);
+-    startQrLoop();
+     startQrWatchdog();
+     pollGuardStatusFallback();
+ 
