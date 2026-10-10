@@ -1,7 +1,7 @@
-diff --git a/tmp/staging-index-lf.html b/tmp/index-qr-resilience.html
+diff --git a/index.html b/index.html
 index de3316e..27f8cf9 100644
---- a/tmp/staging-index-lf.html
-+++ b/tmp/index-qr-resilience.html
+--- a/index.html
++++ b/index.html
 @@ -136,6 +136,7 @@
      const QR_REFRESH_SECONDS = 30;
      const QR_REQUEST_TIMEOUT_MS = 8000;
