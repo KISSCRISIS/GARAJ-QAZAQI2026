@@ -1,0 +1,127 @@
+diff --git a/guard.html b/guard.html
+index 6981e11..7039ddb 100644
+--- a/guard.html
++++ b/guard.html
+@@ -1,6 +1,6 @@
+ <!doctype html>
+ <html lang="ar" dir="rtl"><head>
+-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-RaZTt/wbeFeptjA4HCejPQYQY8rIqIR55Mss0cU3jSs='; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data: blob: https://*.supabase.co; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'self';"><meta charset="utf-8"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><title>شاشة الحارس | ALBASHIR</title>
++<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Rlu9KIyOU/BmtJvWn4cODxwk7e7OXalgo2F/y1Y+z9Y='; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data: blob: https://*.supabase.co; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'self';"><meta charset="utf-8"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><title>شاشة الحارس | ALBASHIR</title>
+ <link rel="stylesheet" href="./guard-screen.css"><link rel="icon" href="./favicon.svg"><link rel="stylesheet" href="./guard-manual.css"><script src="./supabase.min.js"></script><script src="./qrcode.min.js"></script>
+ <style>*{box-sizing:border-box}body{margin:0;background:#03121e;color:#e5f2ff;font-family:Tahoma,Arial;min-height:100vh}main{max-width:900px;margin:auto;padding:20px}section{background:#0b2638;padding:20px;border:1px solid #27516a;border-radius:18px;margin:16px 0;text-align:center}canvas{display:block;margin:auto;max-width:100%;height:auto!important;background:white}button{padding:14px 24px;background:#087eae;color:white;border:0;border-radius:12px;font:inherit;cursor:pointer}.error{color:#fecaca}.allowed{border-color:#22c55e}.denied{border-color:#ef4444}.limited{border-color:#fb923c}[hidden]{display:none!important}img{width:140px;height:160px;object-fit:cover;border-radius:16px}#countdown{font-size:30px}#result{position:fixed;inset:0;z-index:9999;margin:0;border-radius:0;border-width:4px;background:#03121e;display:grid;place-items:center;align-content:center;padding:clamp(24px,5vw,64px);overflow:auto}#result[hidden]{display:none!important}#result h2{font-size:clamp(42px,8vw,88px);margin:0 0 24px}#result img{width:min(260px,46vw);height:min(300px,52vw);max-width:260px;max-height:300px}#result h3{font-size:clamp(28px,5vw,48px);margin:20px 0 10px}#result p{font-size:clamp(20px,3vw,32px);margin:8px 0}@media(max-height:400px){main{padding:8px}section{padding:10px}canvas{max-height:210px;width:auto!important}#result{padding:16px}#result h2{font-size:36px;margin-bottom:12px}#result img{width:120px;height:130px}#result h3{font-size:24px;margin:8px 0}#result p{font-size:18px}} </style><link rel="stylesheet" href="./navigation-polish.css">
+ </head>
+@@ -31,17 +31,100 @@
+ <script src="./verify-shared.js"></script><script>
+ const client=supabase.createClient(APP_CONFIG.SUPABASE_URL,APP_CONFIG.SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
+ // Cover the 5s transport timeout and 1s scheduler tick; server TTL stays 30s.
+-const QR_PREWARM_SECONDS=6;
+-const el=id=>document.getElementById(id);let current=null,standby=null,sessions=[],refreshing=false,prewarming=false,polling=false,lastDecision=0,resultUntil=0,photoBlob=null,photoGeneration=0,lastHealthyAt=Date.now(),failureCount=0;let pollSequence=0;const deliveredResults=new Map();
++const QR_PREWARM_SECONDS=12;
++const el=id=>document.getElementById(id);let current=null,standby=null,sessions=[],refreshing=false,prewarming=false,polling=false,lastDecision=0,resultUntil=0,photoBlob=null,photoGeneration=0,lastHealthyAt=Date.now(),failureCount=0;let qrFailStreak=0,nextRetryAt=0;const QR_RETRY_BACKOFF=[2,5,15,30];const QR_RESTORE_KEY="albashir_public_guard_qr_session_v1";let pollSequence=0;const deliveredResults=new Map();
+ function healthy(message='QR نشط'){lastHealthyAt=Date.now();failureCount=0;el('runtime').className='';el('runtime').textContent=message;}
+ function unavailable(error){console.error('Public guard runtime failure');failureCount++;el('runtime').textContent=failureCount<3?'ضعف اتصال — جاري إعادة المحاولة...':'النظام غير متاح حالياً — جاري إعادة الاتصال';el('runtime').className='error';}
+ function clearExpired(){if(current&&performance.now()>=current.deadline){el('qr').hidden=true;el('qr').getContext('2d').clearRect(0,0,el('qr').width,el('qr').height);el('countdown').textContent='انتهت صلاحية الرمز';}}
+ async function guardRpc(name,payload={},timeoutMs=5000){el('qrNetworkState').textContent=navigator.onLine===false?'الاتصال: غير متصل':'الاتصال: جارٍ الاتصال بالخادم';const controller=new AbortController();let timer;try{const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(Error('Guard RPC timeout'));},timeoutMs);});const response=await Promise.race([client.rpc(name,payload).abortSignal(controller.signal),timeout]);el('qrNetworkState').textContent=response.error?'الاتصال: تعذّر الطلب':'الاتصال: استجاب الخادم';return response;}catch(error){el('qrNetworkState').textContent='الاتصال: انتهت المهلة أو تعذّر الاتصال';throw error;}finally{clearTimeout(timer);}}
+ async function boundedQrRender(canvas,url){let timer;try{await Promise.race([QRCode.toCanvas(canvas,url,{width:320,margin:4,errorCorrectionLevel:'M',color:{dark:'#000000',light:'#ffffff'}}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('QR_RENDER_TIMEOUT')),5000);})]);}finally{clearTimeout(timer);}}
+-async function createCandidate(){el('qrGenerationState').textContent='الرمز: جارٍ التوليد';const started=performance.now(),sessionStarted=Date.now();const {data,error}=await guardRpc('create_public_guard_qr');if(error||data?.ok!==true)throw Error(error?.message||data?.error||'QR unavailable');const expiry=Date.parse(data.expires_at),ttl=Number(data.expires_in_seconds),deadline=started+ttl*1000;if(!Number.isFinite(expiry)||!Number.isFinite(ttl)||ttl<=0||ttl>30||deadline<=performance.now())throw Error('Expired QR response');const url=new URL('./verify.html',location.href);url.searchParams.set('token',data.token);url.searchParams.set('public_guard','1');const canvas=document.createElement('canvas');await boundedQrRender(canvas,url.toString());if(deadline<=performance.now())throw Error('QR expired during rendering');sessions.push({key:data.read_key,until:sessionStarted+6*60*1000,readDeadline:started+6*60*1000,lastPolled:0,interrupted:false});return {expiresAt:expiry,deadline,canvas};}
+-function activateCandidate(candidate){if(!candidate||candidate.deadline<=performance.now())return false;el('qr').width=candidate.canvas.width;el('qr').height=candidate.canvas.height;el('qr').getContext('2d').drawImage(candidate.canvas,0,0);current={expiresAt:candidate.expiresAt,deadline:candidate.deadline};el('qr').hidden=false;el('qrGenerationState').textContent='الرمز: جاهز';healthy('QR نشط');return true;}
+-async function refresh(){if(refreshing||prewarming)return;refreshing=true;try{activateCandidate(await createCandidate());standby=null;}catch(e){clearExpired();el('qrGenerationState').textContent='الرمز: تعذّر التجهيز — إعادة المحاولة';unavailable(e);}finally{refreshing=false;}}
+-async function prewarm(){if(prewarming||refreshing||standby)return;prewarming=true;try{standby=await createCandidate();healthy('QR نشط — الرمز التالي جاهز');}catch(e){unavailable(e);}finally{prewarming=false;}}
++async function createCandidate(){
++  el('qrGenerationState').textContent='الرمز: جارٍ التوليد';
++  const started=performance.now(),sessionStarted=Date.now();
++  const {data,error}=await guardRpc('create_public_guard_qr');
++  if(error||data?.ok!==true)throw Error(error?.message||data?.error||'QR unavailable');
++  const expiry=Date.parse(data.expires_at),serverNow=Date.parse(data.server_now||'');
++  const ttl=Number(data.expires_in_seconds);
++  const serverRemain=Number.isFinite(serverNow)?expiry-serverNow:ttl*1000;
++  const deadline=performance.now()+Math.max(0,Math.min(serverRemain,ttl*1000)-(performance.now()-started)-250);
++  if(!Number.isFinite(expiry)||!Number.isFinite(ttl)||ttl<=0||ttl>30||deadline<=performance.now()+250)throw Error('Expired QR response');
++  const url=new URL('./verify.html',location.href);
++  url.searchParams.set('token',data.token);url.searchParams.set('public_guard','1');
++  const canvas=document.createElement('canvas');await boundedQrRender(canvas,url.toString());
++  if(deadline<=performance.now())throw Error('QR expired during rendering');
++  sessions.push({key:data.read_key,until:sessionStarted+6*60*1000,readDeadline:started+6*60*1000,lastPolled:0,interrupted:false});
++  persistQrState();
++  return {expiresAt:Date.now()+Math.max(0,deadline-performance.now()),deadline,canvas,url:url.toString()};
++}
++function activateCandidate(candidate){
++  if(!candidate||candidate.deadline<=performance.now())return false;
++  el('qr').width=candidate.canvas.width;el('qr').height=candidate.canvas.height;
++  el('qr').getContext('2d').drawImage(candidate.canvas,0,0);
++  current={expiresAt:candidate.expiresAt,deadline:candidate.deadline,url:candidate.url};
++  el('qr').hidden=false;el('qrGenerationState').textContent='الرمز: جاهز';
++  qrFailStreak=0;nextRetryAt=0;healthy('QR نشط');persistQrState();return true;
++}
++async function refresh(){
++  if(refreshing||prewarming||performance.now()<nextRetryAt)return;
++  refreshing=true;
++  try{
++    const candidate=await createCandidate();
++    if(!activateCandidate(candidate))throw Error('QR_EXPIRED_BEFORE_ACTIVATION');
++    standby=null;
++  }catch(e){
++    clearExpired();scheduleQrRetry();el('qrGenerationState').textContent='الرمز: تعذّر التجهيز — إعادة المحاولة';
++    if(current&&current.deadline>performance.now()){
++      el('runtime').className='';el('runtime').textContent='تعذّر التجديد، الرمز الحالي ما زال صالحًا';
++    }else unavailable(e);
++  }finally{refreshing=false;}
++}
++async function prewarm(){
++  if(prewarming||refreshing||standby||performance.now()<nextRetryAt)return;
++  prewarming=true;
++  try{
++    standby=await createCandidate();
++    qrFailStreak=0;nextRetryAt=0;healthy('QR نشط — الرمز التالي جاهز');
++    if(!current||current.deadline<=performance.now()){
++      const next=standby;standby=null;activateCandidate(next);
++    }
++  }catch(e){
++    scheduleQrRetry();
++    if(current&&current.deadline>performance.now()){
++      el('runtime').className='';el('runtime').textContent='تعذر تجديد الرمز؛ الحالي صالح حتى الانتهاء';
++    }else unavailable(e);
++  }finally{prewarming=false;}
++}
++function scheduleQrRetry(){
++  qrFailStreak=Math.min(40,qrFailStreak+1);
++  nextRetryAt=performance.now()+QR_RETRY_BACKOFF[Math.min(qrFailStreak-1,QR_RETRY_BACKOFF.length-1)]*1000;
++}
++function persistQrState(){
++  try{
++    const sessionKeys=sessions.filter(x=>x.until>Date.now()).slice(-24).map(x=>({key:x.key,until:x.until}));
++    const value=current&&current.url&&current.deadline>performance.now()?
++      {url:current.url,expiresAt:current.expiresAt}:null;
++    sessionStorage.setItem(QR_RESTORE_KEY,JSON.stringify({current:value,sessions:sessionKeys}));
++  }catch(_){}
++}
++async function restoreQrState(){
++  let saved;try{saved=JSON.parse(sessionStorage.getItem(QR_RESTORE_KEY)||'null')}catch(_){return false}
++  if(!saved)return false;
++  const now=Date.now();
++  if(Array.isArray(saved.sessions)){
++    sessions=saved.sessions.filter(x=>x&&typeof x.key==='string'&&/^[0-9a-f]{64}$/.test(x.key)
++      &&Number.isFinite(x.until)&&x.until>now&&x.until<now+6*60*1000)
++      .map(x=>({key:x.key,until:x.until,readDeadline:performance.now()+x.until-now,lastPolled:0,interrupted:false}));
++  }
++  const q=saved.current;
++  if(!q||typeof q.url!=='string'||!Number.isFinite(q.expiresAt)||q.expiresAt<=now+500)return false;
++  let url;try{url=new URL(q.url)}catch(_){return false}
++  if(url.origin!==location.origin||!url.pathname.endsWith('/verify.html')||
++    url.searchParams.get('public_guard')!=='1'||!/^[0-9a-f-]{36}$/i.test(url.searchParams.get('token')||''))return false;
++  const deadline=performance.now()+Math.max(0,q.expiresAt-Date.now());
++  const canvas=document.createElement('canvas');
++  await boundedQrRender(canvas,url.toString());
++  return activateCandidate({url:url.toString(),expiresAt:q.expiresAt,deadline,canvas});
++}
+ function rotate(){if(standby&&standby.deadline>performance.now()){const next=standby;standby=null;activateCandidate(next);return true;}return false;}
+ let resultPrivacyTimer=null;
+ function startResultPrivacy(){if(resultPrivacyTimer!==null)clearTimeout(resultPrivacyTimer);resultUntil=performance.now()+10000;resultPrivacyTimer=setTimeout(clearResult,10000);}
+@@ -77,6 +160,6 @@ async function poll(){if(polling)return;polling=true;const cycleStarted=performa
+   }catch(e){s.interrupted=true;el('qrVerificationState').textContent='التحقق: تعذّر جلب النتيجة — إعادة المحاولة';unavailable(e);}
+  }
+ }finally{polling=false;}}
+-el('refresh').onclick=()=>{standby=null;refresh();};setInterval(()=>{if(resultUntil&&performance.now()>=resultUntil)clearResult();clearExpired();if(current){const remaining=Math.ceil((current.deadline-performance.now())/1000);if(remaining>0){el('countdown').textContent=remaining;if(remaining<=QR_PREWARM_SECONDS)prewarm();}}if(!current||performance.now()>=current.deadline){if(!rotate())refresh();}},1000);setInterval(poll,1500);setInterval(()=>{if(Date.now()-lastHealthyAt>10000){el('runtime').textContent='إعادة تنشيط الاتصال...';el('runtime').className='error';poll();if(!current||current.deadline-performance.now()<5000)refresh();}},5000);refresh();window.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(resultUntil&&performance.now()>=resultUntil)clearResult();poll();if(!current||performance.now()>=current.deadline){if(!rotate())refresh();}}});window.addEventListener('pagehide',clearResult);window.addEventListener('pageshow',()=>{if(resultUntil&&performance.now()>=resultUntil)clearResult();poll();});window.addEventListener('online',()=>{poll();});window.addEventListener('offline',()=>{el('qrNetworkState').textContent='الاتصال: غير متصل';for(const s of sessions)s.interrupted=true;});
++el('refresh').onclick=()=>{standby=null;nextRetryAt=0;refresh();};setInterval(()=>{if(resultUntil&&performance.now()>=resultUntil)clearResult();clearExpired();if(current){const remaining=Math.ceil((current.deadline-performance.now())/1000);if(remaining>0){el('countdown').textContent=remaining;if(remaining<=QR_PREWARM_SECONDS&&performance.now()>=nextRetryAt)prewarm();}}if(!current||performance.now()>=current.deadline){if(!rotate()&&performance.now()>=nextRetryAt)refresh();}},1000);setInterval(poll,1500);setInterval(()=>{if(Date.now()-lastHealthyAt>10000){el('runtime').textContent='إعادة تنشيط الاتصال...';el('runtime').className='error';poll();if((!current||current.deadline-performance.now()<5000)&&performance.now()>=nextRetryAt)refresh();}},5000);restoreQrState().then(ok=>{if(!ok)refresh();else if(current&&current.deadline-performance.now()<=QR_PREWARM_SECONDS*1000)prewarm();}).catch(()=>refresh());window.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(resultUntil&&performance.now()>=resultUntil)clearResult();poll();if(!current||performance.now()>=current.deadline){if(!rotate()&&performance.now()>=nextRetryAt)refresh();}}});window.addEventListener('pagehide',clearResult);window.addEventListener('pageshow',()=>{if(resultUntil&&performance.now()>=resultUntil)clearResult();poll();});window.addEventListener('online',()=>{poll();});window.addEventListener('offline',()=>{el('qrNetworkState').textContent='الاتصال: غير متصل';for(const s of sessions)s.interrupted=true;});
+ </script><script src="./guard-manual.js"></script><script src="./navigation-polish.js"></script>
+ </body></html>
